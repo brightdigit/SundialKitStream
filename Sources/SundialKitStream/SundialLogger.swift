@@ -1,6 +1,6 @@
 //
-//  Logger.swift
-//  SundialKit
+//  SundialLogger.swift
+//  SundialKitStream
 //
 //  Created by Leo Dion.
 //  Copyright © 2025 BrightDigit.
@@ -28,6 +28,7 @@
 //
 
 import Foundation
+
 #if canImport(os.log)
   import os.log
 #endif
@@ -40,7 +41,10 @@ import Foundation
   @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
   internal enum SundialLogger {
     /// Core protocols and types
-    internal static let core = Logger(subsystem: "com.brightdigit.SundialKit.Core", category: "core")
+    internal static let core = Logger(
+      subsystem: "com.brightdigit.SundialKit.Core",
+      category: "core"
+    )
 
     /// Network monitoring (PathMonitor, NetworkPing)
     internal static let network = Logger(
@@ -139,7 +143,8 @@ import Foundation
     }
 
     /// Log a message to the network subsystem
-    internal static func network(_ type: OSLogType, _ message: StaticString, _ args: any CVarArg...) {
+    internal static func network(_ type: OSLogType, _ message: StaticString, _ args: any CVarArg...)
+    {
       os_log(message, log: networkLog, type: type, args)
     }
 
@@ -151,17 +156,20 @@ import Foundation
     }
 
     /// Log a message to the stream subsystem
-    internal static func stream(_ type: OSLogType, _ message: StaticString, _ args: any CVarArg...) {
+    internal static func stream(_ type: OSLogType, _ message: StaticString, _ args: any CVarArg...)
+    {
       os_log(message, log: streamLog, type: type, args)
     }
 
     /// Log a message to the combine subsystem
-    internal static func combine(_ type: OSLogType, _ message: StaticString, _ args: any CVarArg...) {
+    internal static func combine(_ type: OSLogType, _ message: StaticString, _ args: any CVarArg...)
+    {
       os_log(message, log: combineLog, type: type, args)
     }
 
     /// Log a message to the binary subsystem
-    internal static func binary(_ type: OSLogType, _ message: StaticString, _ args: any CVarArg...) {
+    internal static func binary(_ type: OSLogType, _ message: StaticString, _ args: any CVarArg...)
+    {
       os_log(message, log: binaryLog, type: type, args)
     }
 
