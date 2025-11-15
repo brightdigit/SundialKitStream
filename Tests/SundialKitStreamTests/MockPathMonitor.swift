@@ -1,5 +1,5 @@
 //
-//  ConnectivityStateManager.swift
+//  MockPathMonitor.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
@@ -27,52 +27,47 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-public import Foundation
-public import SundialKitConnectivity
-public import SundialKitCore
+import Foundation
 
-/// Manages ConnectivityState and notifies stream subscribers of changes
-///
-/// This type coordinates state updates with the StreamContinuationManager,
-/// ensuring all subscribers receive state change notifications.
-@available(macOS 10.15, iOS 13, watchOS 6, tvOS 13, *)
-public actor ConnectivityStateManager {
-  // MARK: - Properties
+@testable import SundialKitCore
+@testable import SundialKitNetwork
+@testable import SundialKitStream
 
-  internal var state: ConnectivityState = .initial
-  internal let continuationManager: StreamContinuationManager
+// MARK: - Mock Implementations
 
-  // MARK: - State Access
+internal final class MockPathMonitor: PathMonitor, @unchecked Sendable {
+  internal typealias PathType = MockPath
 
-  internal var currentState: ConnectivityState {
-    state
+  internal let id: UUID
+  internal private(set) var pathUpdate: ((MockPath) -> Void)?
+  internal private(set) var dispatchQueueLabel: String?
+  internal private(set) var isCancelled = false
+
+  internal init(id: UUID = UUID()) {
+    self.id = id
   }
 
-  internal var activationState: ActivationState? {
-    state.activationState
+  internal func onPathUpdate(_ handler: @escaping (MockPath) -> Void) {
+    pathUpdate = handler
   }
 
-  internal var activationError: (any Error)? {
-    state.activationError
+  internal func start(queue: DispatchQueue) {
+    dispatchQueueLabel = queue.label
+    // Immediately send an initial path
+    pathUpdate?(
+      .init(
+        isConstrained: false,
+        isExpensive: false,
+        pathStatus: .satisfied(.wiredEthernet)
+      )
+    )
   }
 
-  internal var isReachable: Bool {
-    state.isReachable
+  internal func cancel() {
+    isCancelled = true
   }
 
-  internal var isPairedAppInstalled: Bool {
-    state.isPairedAppInstalled
-  }
-
-  #if os(iOS)
-    internal var isPaired: Bool {
-      state.isPaired
-    }
-  #endif
-
-  // MARK: - Initialization
-
-  internal init(continuationManager: StreamContinuationManager) {
-    self.continuationManager = continuationManager
+  internal func sendPath(_ path: MockPath) {
+    pathUpdate?(path)
   }
 }
