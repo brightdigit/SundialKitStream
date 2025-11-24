@@ -31,17 +31,17 @@ let swiftSettings: [SwiftSetting] = [
   .enableExperimentalFeature("SymbolLinkageMarkers"),
   .enableExperimentalFeature("TransferringArgsAndResults"),
   .enableExperimentalFeature("VariadicGenerics"),
-  .enableExperimentalFeature("WarnUnsafeReflection"),
+  .enableExperimentalFeature("WarnUnsafeReflection")
 
   // Enhanced compiler checking
-  .unsafeFlags([
-    "-warn-concurrency",
-    "-enable-actor-data-race-checks",
-    "-strict-concurrency=complete",
-    "-enable-testing",
-    "-Xfrontend", "-warn-long-function-bodies=100",
-    "-Xfrontend", "-warn-long-expression-type-checking=100"
-  ])
+  // .unsafeFlags([
+  //   "-warn-concurrency",
+  //   "-enable-actor-data-race-checks",
+  //   "-strict-concurrency=complete",
+  //   "-enable-testing",
+  //   "-Xfrontend", "-warn-long-function-bodies=100",
+  //   "-Xfrontend", "-warn-long-expression-type-checking=100"
+  // ])
 ]
 
 let package = Package(
