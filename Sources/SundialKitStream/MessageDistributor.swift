@@ -113,6 +113,9 @@ public actor MessageDistributor {
     _ data: Data,
     replyHandler: @escaping @Sendable (Data) -> Void
   ) async {
+    // TODO: Emit to raw message stream with reply handler like handleMessage does
+    // This will require extending ConnectivityReceiveResult to support binary data
+
     // Decode and send to typed stream subscribers
     if let decoder = messageDecoder {
       do {
