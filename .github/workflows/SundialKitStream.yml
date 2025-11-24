@@ -24,8 +24,6 @@ jobs:
             nightly: true
     steps:
       - uses: actions/checkout@v4
-      - name: Ensure remote dependencies
-        run: ./Scripts/ensure-remote-deps.sh
       - uses: brightdigit/swift-build@v1.4.0
         with:
           scheme: ${{ env.PACKAGE_NAME }}
@@ -117,9 +115,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Ensure remote dependencies
-        run: ./Scripts/ensure-remote-deps.sh
-
       - name: Build and Test
         uses: brightdigit/swift-build@v1.4.0
         with:
@@ -150,8 +145,6 @@ jobs:
       LINT_MODE: STRICT
     steps:
       - uses: actions/checkout@v4
-      - name: Ensure remote dependencies
-        run: ./Scripts/ensure-remote-deps.sh
       - name: Install mise
         uses: jdx/mise-action@v2
         with:
