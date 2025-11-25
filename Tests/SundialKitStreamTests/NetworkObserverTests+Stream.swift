@@ -77,9 +77,9 @@ extension NetworkObserverTests {
 
       await observer.start(queue: .global())
 
-      let capture = TestValueCapture()
-
       try await confirmation("Received path status", expectedCount: 2) { receivedStatus in
+        let capture = TestValueCapture()
+
         Task { @Sendable in
           let stream = await observer.pathStatusStream
           for await status in stream {
@@ -99,13 +99,12 @@ extension NetworkObserverTests {
 
         // Give time for async delivery
         try await Task.sleep(for: .milliseconds(50))
-      }
 
-      // Verify values after confirmation completes
-      let statuses = await capture.pathStatuses
-      #expect(statuses.count == 2)
-      #expect(statuses[0] == .satisfied(.wiredEthernet))
-      #expect(statuses[1] == .unsatisfied(.localNetworkDenied))
+        let statuses = await capture.pathStatuses
+        #expect(statuses.count == 2)
+        #expect(statuses[0] == .satisfied(.wiredEthernet))
+        #expect(statuses[1] == .unsatisfied(.localNetworkDenied))
+      }
     }
 
     @Test("isExpensiveStream tracks expensive status")
@@ -115,9 +114,9 @@ extension NetworkObserverTests {
 
       await observer.start(queue: .global())
 
-      let capture = TestValueCapture()
-
       try await confirmation("Received expensive status", expectedCount: 2) { receivedValue in
+        let capture = TestValueCapture()
+
         Task { @Sendable in
           let stream = await observer.isExpensiveStream
           for await value in stream {
@@ -137,13 +136,12 @@ extension NetworkObserverTests {
 
         // Give time for async delivery
         try await Task.sleep(for: .milliseconds(50))
-      }
 
-      // Verify values after confirmation completes
-      let values = await capture.boolValues
-      #expect(values.count == 2)
-      #expect(values[0] == false)
-      #expect(values[1] == true)
+        let values = await capture.boolValues
+        #expect(values.count == 2)
+        #expect(values[0] == false)
+        #expect(values[1] == true)
+      }
     }
 
     @Test("isConstrainedStream tracks constrained status")
@@ -153,9 +151,9 @@ extension NetworkObserverTests {
 
       await observer.start(queue: .global())
 
-      let capture = TestValueCapture()
-
       try await confirmation("Received constrained status", expectedCount: 2) { receivedValue in
+        let capture = TestValueCapture()
+
         Task { @Sendable in
           let stream = await observer.isConstrainedStream
           for await value in stream {
@@ -175,13 +173,12 @@ extension NetworkObserverTests {
 
         // Give time for async delivery
         try await Task.sleep(for: .milliseconds(50))
-      }
 
-      // Verify values after confirmation completes
-      let values = await capture.boolValues
-      #expect(values.count == 2)
-      #expect(values[0] == false)
-      #expect(values[1] == true)
+        let values = await capture.boolValues
+        #expect(values.count == 2)
+        #expect(values[0] == false)
+        #expect(values[1] == true)
+      }
     }
 
     // MARK: - Multiple Subscribers Tests
