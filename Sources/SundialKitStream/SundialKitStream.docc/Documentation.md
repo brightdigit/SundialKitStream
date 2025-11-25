@@ -38,8 +38,8 @@ Add SundialKit to your `Package.swift`:
 
 ```swift
 dependencies: [
-  .package(url: "https://github.com/brightdigit/SundialKit.git", from: "2.0.0"),
-  .package(url: "https://github.com/brightdigit/SundialKitStream.git", from: "1.0.0")
+  .package(url: "https://github.com/brightdigit/SundialKit.git", from: "2.0.0-alpha.1"),
+  .package(url: "https://github.com/brightdigit/SundialKitStream.git", from: "1.0.0-alpha.1")
 ],
 targets: [
   .target(
