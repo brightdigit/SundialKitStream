@@ -130,3 +130,4 @@ disabled_rules:
     - trailing_comma
     - opening_brace
     - pattern_matching_keywords
+    - todo
