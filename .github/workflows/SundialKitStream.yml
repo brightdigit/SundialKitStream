@@ -71,6 +71,8 @@ jobs:
             type: wasm-embedded
     steps:
       - uses: actions/checkout@v6
+      - name: Ensure remote dependencies
+        run: ./Scripts/ensure-remote-deps.sh
       - uses: brightdigit/swift-build@v1
         id: build
         with:
@@ -182,6 +184,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+
+      - name: Ensure remote dependencies
+        run: ./Scripts/ensure-remote-deps.sh
 
       - name: Build and Test
         id: build
