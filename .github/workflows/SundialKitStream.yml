@@ -78,6 +78,7 @@ jobs:
         with:
           scheme: ${{ env.PACKAGE_NAME }}
           type: ${{ matrix.type }}
+          skip-package-resolved: true
       - name: Install curl
         if: steps.build.outputs.contains-code-coverage == 'true'
         run: |
@@ -198,6 +199,7 @@ jobs:
           deviceName: ${{ matrix.deviceName }}
           osVersion: ${{ matrix.osVersion }}
           download-platform: ${{ matrix.download-platform }}
+          skip-package-resolved: true
 
       # Common Coverage Steps
       - name: Process Coverage
