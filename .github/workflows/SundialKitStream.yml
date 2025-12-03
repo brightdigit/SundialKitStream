@@ -150,6 +150,8 @@ jobs:
       LINT_MODE: STRICT
     steps:
       - uses: actions/checkout@v4
+      - name: Ensure remote dependencies
+        run: ./Scripts/ensure-remote-deps.sh      
       - name: Install mise
         uses: jdx/mise-action@v2
         with:
