@@ -34,6 +34,7 @@ jobs:
       full-matrix: ${{ steps.set-matrix.outputs.full-matrix }}
       ubuntu-os: ${{ steps.set-matrix.outputs.ubuntu-os }}
       ubuntu-swift: ${{ steps.set-matrix.outputs.ubuntu-swift }}
+      ubuntu-type: ${{ steps.set-matrix.outputs.ubuntu-type }}
     steps:
       - name: Determine build matrix
         id: set-matrix
@@ -42,10 +43,12 @@ jobs:
             echo "full-matrix=true" >> "$GITHUB_OUTPUT"
             echo 'ubuntu-os=["noble","jammy"]' >> "$GITHUB_OUTPUT"
             echo 'ubuntu-swift=[{"version":"6.1"},{"version":"6.2"},{"version":"6.3"}]' >> "$GITHUB_OUTPUT"
+            echo 'ubuntu-type=["","wasm","wasm-embedded"]' >> "$GITHUB_OUTPUT"
           else
             echo "full-matrix=false" >> "$GITHUB_OUTPUT"
             echo 'ubuntu-os=["noble"]' >> "$GITHUB_OUTPUT"
             echo 'ubuntu-swift=[{"version":"6.3"}]' >> "$GITHUB_OUTPUT"
+            echo 'ubuntu-type=[""]' >> "$GITHUB_OUTPUT"
           fi
 
   build-ubuntu:
@@ -58,10 +61,18 @@ jobs:
       matrix:
         os: ${{ fromJSON(needs.configure.outputs.ubuntu-os) }}
         swift: ${{ fromJSON(needs.configure.outputs.ubuntu-swift) }}
+        type: ${{ fromJSON(needs.configure.outputs.ubuntu-type) }}
+        exclude:
+          - swift: {version: "6.1"}
+            type: wasm
+          - swift: {version: "6.1"}
+            type: wasm-embedded
     steps:
       - uses: actions/checkout@v6
       - uses: brightdigit/swift-build@v1
         id: build
+        with:
+          type: ${{ matrix.type }}
       - name: Install curl
         if: steps.build.outputs.contains-code-coverage == 'true'
         run: |
@@ -138,16 +149,6 @@ jobs:
           - runs-on: macos-15
             xcode: "/Applications/Xcode_16.4.app"
 
-          # macOS Build (older Xcode)
-          - type: macos
-            runs-on: macos-15
-            xcode: "/Applications/Xcode_16.4.app"
-
-          # macOS Build
-          - type: macos
-            runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
-
           # iOS Build Matrix
           - type: ios
             runs-on: macos-26
@@ -156,6 +157,12 @@ jobs:
             osVersion: "26.4"
             download-platform: true
 
+          - type: ios
+            runs-on: macos-15
+            xcode: "/Applications/Xcode_16.4.app"
+            deviceName: "iPhone 16e"
+            osVersion: "18.5"
+
           # watchOS Build Matrix
           - type: watchos
             runs-on: macos-26
@@ -163,6 +170,12 @@ jobs:
             deviceName: "Apple Watch Ultra 3 (49mm)"
             osVersion: "26.4"
             download-platform: true
+
+          - type: watchos
+            runs-on: macos-15
+            xcode: "/Applications/Xcode_16.4.app"
+            deviceName: "Apple Watch Series 10 (46mm)"
+            osVersion: "11.5"
 
           # tvOS Build Matrix
           - type: tvos
@@ -198,13 +211,90 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: ${{ matrix.type && format('{0}{1}', matrix.type, matrix.osVersion) || 'spm' }}
 
+  build-windows:
+    name: Build on Windows
+    needs: [configure]
+    if: needs.configure.outputs.full-matrix == 'true'
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runs-on: [windows-2022, windows-2025]
+        swift:
+          - version: swift-6.3-release
+            build: 6.3-RELEASE
+          - version: swift-6.2-release
+            build: 6.2-RELEASE
+          - version: swift-6.1-release
+            build: 6.1-RELEASE
+    steps:
+      - uses: actions/checkout@v6
+      - name: Enable git symlinks
+        shell: pwsh
+        run: git config --global core.symlinks true
+      - uses: brightdigit/swift-build@v1
+        id: build
+        with:
+          windows-swift-version: ${{ matrix.swift.version }}
+          windows-swift-build: ${{ matrix.swift.build }}
+      - name: Upload coverage to Codecov
+        if: steps.build.outputs.contains-code-coverage == 'true'
+        uses: codecov/codecov-action@v6
+        with:
+          fail_ci_if_error: true
+          flags: swift-${{ matrix.swift.version }},windows
+          verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          os: windows
+          swift_project: SundialKitStream
+
+  build-android:
+    name: Build for Android
+    needs: [configure]
+    if: needs.configure.outputs.full-matrix == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        swift:
+          - version: "6.2"
+          - version: "6.3"
+        android-api-level: [33, 34, 35, 36]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      - uses: brightdigit/swift-build@v1
+        id: build
+        with:
+          type: android
+          android-swift-version: ${{ matrix.swift.version }}
+          android-api-level: ${{ matrix.android-api-level }}
+          android-run-tests: true
+      - name: Upload coverage to Codecov
+        if: steps.build.outputs.contains-code-coverage == 'true'
+        uses: codecov/codecov-action@v6
+        with:
+          fail_ci_if_error: true
+          flags: android-api${{ matrix.android-api-level }}-swift${{ matrix.swift.version }}
+          verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   lint:
     name: Linting
-    # build-macos-full is skipped on feature branches;
+    # build-windows, build-macos-full, and build-android are skipped on feature branches;
     # !failure() allows this job to proceed past skipped (not failed) dependencies.
     if: ${{ !cancelled() && !failure() && (github.event_name == 'pull_request' || !contains(github.event.head_commit.message, 'ci skip')) }}
     runs-on: ubuntu-latest
-    needs: [build-ubuntu, build-macos, build-macos-full]
+    needs: [build-ubuntu, build-macos, build-windows, build-macos-full, build-android]
     steps:
       - uses: actions/checkout@v6
       - uses: jdx/mise-action@v4
