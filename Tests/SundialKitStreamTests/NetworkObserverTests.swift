@@ -29,5 +29,5 @@
 
 import Testing
 
-@Suite("NetworkObserver Tests")
+@Suite("NetworkObserver Tests", .disabled(if: isWasm))
 internal enum NetworkObserverTests {}

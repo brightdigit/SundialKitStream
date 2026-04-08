@@ -1,5 +1,5 @@
 //
-//  SundialLogger.swift
+//  SundialLogger+Fallback.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
@@ -27,61 +27,75 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-import Foundation
+#if !canImport(os.log)
+  // MARK: - Fallback for non-Apple platforms (Linux, Windows)
 
-#if canImport(os.log)
-  import os.log
-
-  /// Unified logging infrastructure for SundialKit
+  /// Print-based logging fallback for platforms without OSLog
   ///
-  /// Provides subsystem-based structured logging using OSLog/Logger framework.
-  /// Each SundialKit module has its own subsystem for organized log filtering.
-  @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
+  /// Provides the same API as SundialLogger but uses print() for output
   internal enum SundialLogger {
+    /// Fallback logger that prints to stdout
+    internal struct FallbackLogger {
+      internal let subsystem: String
+      internal let category: String
+
+      internal func error(_ message: String) {
+        print("[\(subsystem):\(category)] ERROR: \(message)")
+      }
+
+      internal func info(_ message: String) {
+        print("[\(subsystem):\(category)] INFO: \(message)")
+      }
+
+      internal func debug(_ message: String) {
+        print("[\(subsystem):\(category)] DEBUG: \(message)")
+      }
+    }
+
     /// Core protocols and types
-    internal static let core = Logger(
+    internal static let core = FallbackLogger(
       subsystem: "com.brightdigit.SundialKit.Core",
       category: "core"
     )
 
     /// Network monitoring (PathMonitor, NetworkPing)
-    internal static let network = Logger(
+    internal static let network = FallbackLogger(
       subsystem: "com.brightdigit.SundialKit.Network",
       category: "network"
     )
 
     /// WatchConnectivity abstractions
-    internal static let connectivity = Logger(
+    internal static let connectivity = FallbackLogger(
       subsystem: "com.brightdigit.SundialKit.Connectivity",
       category: "connectivity"
     )
 
     /// Stream-based observers (actor-based AsyncStream APIs)
-    internal static let stream = Logger(
+    internal static let stream = FallbackLogger(
       subsystem: "com.brightdigit.SundialKit.Stream",
       category: "stream"
     )
 
     /// Combine-based observers (@MainActor with publishers)
-    internal static let combine = Logger(
+    internal static let combine = FallbackLogger(
       subsystem: "com.brightdigit.SundialKit.Combine",
       category: "combine"
     )
 
     /// Binary message encoding/decoding
-    internal static let binary = Logger(
+    internal static let binary = FallbackLogger(
       subsystem: "com.brightdigit.SundialKit.Binary",
       category: "binary"
     )
 
     /// Messagable protocol and message decoding
-    internal static let messagable = Logger(
+    internal static let messagable = FallbackLogger(
       subsystem: "com.brightdigit.SundialKit.Messagable",
       category: "messagable"
     )
 
     /// Test infrastructure
-    internal static let test = Logger(
+    internal static let test = FallbackLogger(
       subsystem: "com.brightdigit.SundialKit.Tests",
       category: "tests"
     )
@@ -90,9 +104,9 @@ import Foundation
     /// - Parameters:
     ///   - subsystem: Reverse DNS notation subsystem identifier
     ///   - category: Category within the subsystem
-    /// - Returns: Configured Logger instance
-    internal static func custom(subsystem: String, category: String) -> Logger {
-      Logger(subsystem: subsystem, category: category)
+    /// - Returns: Configured FallbackLogger instance
+    internal static func custom(subsystem: String, category: String) -> FallbackLogger {
+      FallbackLogger(subsystem: subsystem, category: category)
     }
   }
 #endif

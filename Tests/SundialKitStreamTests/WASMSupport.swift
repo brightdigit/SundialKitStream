@@ -1,9 +1,9 @@
 //
-//  MockPathMonitor.swift
+//  WASMSupport.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
-//  Copyright © 2025 BrightDigit.
+//  Copyright © 2026 BrightDigit.
 //
 //  Permission is hereby granted, free of charge, to any person
 //  obtaining a copy of this software and associated documentation
@@ -27,49 +27,8 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-import Foundation
-
-@testable import SundialKitCore
-@testable import SundialKitNetwork
-@testable import SundialKitStream
-
-// MARK: - Mock Implementations
-
 #if canImport(Dispatch)
-  internal final class MockPathMonitor: PathMonitor, @unchecked Sendable {
-    internal typealias PathType = MockPath
-
-    internal let id: UUID
-    internal private(set) var pathUpdate: ((MockPath) -> Void)?
-    internal private(set) var dispatchQueueLabel: String?
-    internal private(set) var isCancelled = false
-
-    internal init(id: UUID = UUID()) {
-      self.id = id
-    }
-
-    internal func onPathUpdate(_ handler: @escaping (MockPath) -> Void) {
-      pathUpdate = handler
-    }
-
-    internal func start(queue: DispatchQueue) {
-      dispatchQueueLabel = queue.label
-      // Immediately send an initial path
-      pathUpdate?(
-        .init(
-          isConstrained: false,
-          isExpensive: false,
-          pathStatus: .satisfied(.wiredEthernet)
-        )
-      )
-    }
-
-    internal func cancel() {
-      isCancelled = true
-    }
-
-    internal func sendPath(_ path: MockPath) {
-      pathUpdate?(path)
-    }
-  }
+  internal let isWasm = false
+#else
+  internal let isWasm = true
 #endif

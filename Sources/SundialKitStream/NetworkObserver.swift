@@ -3,7 +3,7 @@
 //  SundialKitStream
 //
 //  Created by Leo Dion.
-//  Copyright © 2025 BrightDigit.
+//  Copyright © 2026 BrightDigit.
 //
 //  Permission is hereby granted, free of charge, to any person
 //  obtaining a copy of this software and associated documentation
@@ -116,11 +116,13 @@ public actor NetworkObserver<MonitorType: PathMonitor, PingType: NetworkPing> {
 
   // MARK: - Public API
 
-  /// Starts monitoring network connectivity
-  /// - Parameter queue: The dispatch queue for network monitoring
-  public func start(queue: DispatchQueue) {
-    monitor.start(queue: queue)
-  }
+  #if canImport(Dispatch)
+    /// Starts monitoring network connectivity
+    /// - Parameter queue: The dispatch queue for network monitoring
+    public func start(queue: DispatchQueue) {
+      monitor.start(queue: queue)
+    }
+  #endif
 
   /// Cancels network monitoring
   public func cancel() {
