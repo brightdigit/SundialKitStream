@@ -27,14 +27,28 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if canImport(Dispatch)
-  internal let isWasm = false
-#else
-  internal let isWasm = true
-#endif
+internal struct SupportedModule: OptionSet, Hashable {
+  internal static let dispatch: Self = .init(rawValue: 1)
+  internal static let network: Self = .init(rawValue: 2)
 
-#if canImport(Network)
-  internal let hasNetwork = true
-#else
-  internal let hasNetwork = false
-#endif
+  private static let supported: Self = {
+    var values: [Self] = []
+    #if canImport(Network)
+      values.append(.network)
+    #endif
+    #if canImport(Dispatch)
+      values.append(.dispatch)
+    #endif
+    return .init(values)
+  }()
+
+  internal let rawValue: Int
+
+  internal var isSupported: Bool {
+    self.isSubset(of: Self.supported)
+  }
+
+  internal init(rawValue: Int) {
+    self.rawValue = rawValue
+  }
+}

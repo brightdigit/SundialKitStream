@@ -29,5 +29,8 @@
 
 import Testing
 
-@Suite("NetworkObserver Tests", .disabled(if: isWasm || !hasNetwork))
+@Suite(
+  "NetworkObserver Tests",
+  .enabled(if: SupportedModule([.dispatch, .network]).isSupported)
+)
 internal enum NetworkObserverTests {}
