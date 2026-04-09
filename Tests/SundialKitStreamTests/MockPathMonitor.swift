@@ -27,15 +27,15 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-import Foundation
+#if canImport(Network) && canImport(Dispatch)
+  import Foundation
 
-@testable import SundialKitCore
-@testable import SundialKitNetwork
-@testable import SundialKitStream
+  @testable import SundialKitCore
+  @testable import SundialKitNetwork
+  @testable import SundialKitStream
 
-// MARK: - Mock Implementations
+  // MARK: - Mock Implementations
 
-#if canImport(Dispatch)
   internal final class MockPathMonitor: PathMonitor, @unchecked Sendable {
     internal typealias PathType = MockPath
 

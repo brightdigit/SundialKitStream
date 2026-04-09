@@ -27,14 +27,15 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-import Foundation
-import Testing
+#if canImport(Network)
+  import Foundation
+  import Testing
 
-@testable import SundialKitCore
-@testable import SundialKitNetwork
-@testable import SundialKitStream
+  @testable import SundialKitCore
+  @testable import SundialKitNetwork
+  @testable import SundialKitStream
 
-extension NetworkObserverTests {
+  extension NetworkObserverTests {
   @Suite("Stream Tests")
   internal struct StreamTests {
     // MARK: - Path Updates Stream Tests
@@ -217,4 +218,5 @@ extension NetworkObserverTests {
       #expect(path2Second?.pathStatus == .satisfied(.cellular))
     }
   }
-}
+  }
+#endif

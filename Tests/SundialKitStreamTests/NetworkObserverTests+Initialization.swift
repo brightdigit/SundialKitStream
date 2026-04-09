@@ -27,14 +27,15 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-import Foundation
-import Testing
+#if canImport(Network)
+  import Foundation
+  import Testing
 
-@testable import SundialKitCore
-@testable import SundialKitNetwork
-@testable import SundialKitStream
+  @testable import SundialKitCore
+  @testable import SundialKitNetwork
+  @testable import SundialKitStream
 
-extension NetworkObserverTests {
+  extension NetworkObserverTests {
   @Suite("Initialization and Lifecycle Tests")
   internal struct InitializationTests {
     // MARK: - Initialization Tests
@@ -138,4 +139,5 @@ extension NetworkObserverTests {
     // Note: Full ping integration testing would require NetworkMonitor-level tests
     // since NetworkObserver doesn't directly manage ping lifecycle
   }
-}
+  }
+#endif

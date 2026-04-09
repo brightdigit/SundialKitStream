@@ -27,14 +27,15 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-import Foundation
-import Testing
+#if canImport(Network)
+  import Foundation
+  import Testing
 
-@testable import SundialKitCore
-@testable import SundialKitNetwork
-@testable import SundialKitStream
+  @testable import SundialKitCore
+  @testable import SundialKitNetwork
+  @testable import SundialKitStream
 
-extension NetworkObserverTests {
+  extension NetworkObserverTests {
   @Suite("Edge Cases and State Tests")
   internal struct EdgeCasesTests {
     // MARK: - Current State Tests
@@ -140,4 +141,5 @@ extension NetworkObserverTests {
       #expect(receivedAfterCancel != true)
     }
   }
-}
+  }
+#endif

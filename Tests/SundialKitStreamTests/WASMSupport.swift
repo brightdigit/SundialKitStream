@@ -32,3 +32,9 @@
 #else
   internal let isWasm = true
 #endif
+
+#if canImport(Network)
+  internal let hasNetwork = true
+#else
+  internal let hasNetwork = false
+#endif
