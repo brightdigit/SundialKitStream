@@ -39,7 +39,9 @@ jobs:
       - name: Determine build matrix
         id: set-matrix
         run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.event_name }}" == "pull_request" ]]; then
+          if [[ "${{ github.ref }}" == "refs/heads/main" \
+            || "${{ github.event_name }}" == "pull_request" \
+            || "${{ github.ref }}" == refs/tags/* ]]; then
             echo "full-matrix=true" >> "$GITHUB_OUTPUT"
             echo 'ubuntu-os=["noble","jammy"]' >> "$GITHUB_OUTPUT"
             echo 'ubuntu-swift=[{"version":"6.1"},{"version":"6.2"},{"version":"6.3"}]' >> "$GITHUB_OUTPUT"
@@ -96,8 +98,6 @@ jobs:
   build-macos:
     name: Build on macOS
     needs: [configure]
-    env:
-      PACKAGE_NAME: SundialKitStream
     runs-on: ${{ matrix.runs-on }}
     if: ${{ !cancelled() && needs.configure.result == 'success' }}
     strategy:
@@ -138,8 +138,6 @@ jobs:
     name: Build on macOS (Full)
     needs: [configure]
     if: ${{ !cancelled() && needs.configure.result == 'success' && needs.configure.outputs.full-matrix == 'true' }}
-    env:
-      PACKAGE_NAME: SundialKitStream
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
@@ -214,7 +212,7 @@ jobs:
   build-windows:
     name: Build on Windows
     needs: [configure]
-    if: needs.configure.outputs.full-matrix == 'true'
+    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' }}
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
@@ -251,7 +249,7 @@ jobs:
   build-android:
     name: Build for Android
     needs: [configure]
-    if: needs.configure.outputs.full-matrix == 'true'
+    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
