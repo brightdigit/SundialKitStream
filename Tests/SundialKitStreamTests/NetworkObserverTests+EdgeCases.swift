@@ -27,117 +27,119 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-import Foundation
-import Testing
+#if canImport(Network)
+  import Foundation
+  import Testing
 
-@testable import SundialKitCore
-@testable import SundialKitNetwork
-@testable import SundialKitStream
+  @testable import SundialKitCore
+  @testable import SundialKitNetwork
+  @testable import SundialKitStream
 
-extension NetworkObserverTests {
-  @Suite("Edge Cases and State Tests")
-  internal struct EdgeCasesTests {
-    // MARK: - Current State Tests
+  extension NetworkObserverTests {
+    @Suite("Edge Cases and State Tests")
+    internal struct EdgeCasesTests {
+      // MARK: - Current State Tests
 
-    @Test("getCurrentPath returns latest path")
-    internal func getCurrentPathSnapshot() async {
-      let monitor = MockPathMonitor()
-      let observer = NetworkObserver(monitor: monitor)
+      @Test("getCurrentPath returns latest path")
+      internal func getCurrentPathSnapshot() async {
+        let monitor = MockPathMonitor()
+        let observer = NetworkObserver(monitor: monitor)
 
-      // Before start
-      var currentPath = await observer.getCurrentPath()
-      #expect(currentPath == nil)
+        // Before start
+        var currentPath = await observer.getCurrentPath()
+        #expect(currentPath == nil)
 
-      // After start
-      await observer.start(queue: .global())
+        // After start
+        await observer.start(queue: .global())
 
-      // Give time for async path update from start()
-      try? await Task.sleep(for: .milliseconds(10))
+        // Give time for async path update from start()
+        try? await Task.sleep(for: .milliseconds(10))
 
-      currentPath = await observer.getCurrentPath()
-      #expect(currentPath?.pathStatus == .satisfied(.wiredEthernet))
+        currentPath = await observer.getCurrentPath()
+        #expect(currentPath?.pathStatus == .satisfied(.wiredEthernet))
 
-      // After update
-      let newPath = MockPath(pathStatus: .satisfied(.wifi))
-      monitor.sendPath(newPath)
+        // After update
+        let newPath = MockPath(pathStatus: .satisfied(.wifi))
+        monitor.sendPath(newPath)
 
-      // Give time for async update
-      try? await Task.sleep(for: .milliseconds(10))
+        // Give time for async update
+        try? await Task.sleep(for: .milliseconds(10))
 
-      currentPath = await observer.getCurrentPath()
-      #expect(currentPath?.pathStatus == .satisfied(.wifi))
-    }
+        currentPath = await observer.getCurrentPath()
+        #expect(currentPath?.pathStatus == .satisfied(.wifi))
+      }
 
-    @Test("getCurrentPingStatus returns nil when no ping configured")
-    internal func getCurrentPingStatusWithoutPing() async {
-      let monitor = MockPathMonitor()
-      let observer = NetworkObserver(monitor: monitor)
+      @Test("getCurrentPingStatus returns nil when no ping configured")
+      internal func getCurrentPingStatusWithoutPing() async {
+        let monitor = MockPathMonitor()
+        let observer = NetworkObserver(monitor: monitor)
 
-      await observer.start(queue: .global())
+        await observer.start(queue: .global())
 
-      let pingStatus = await observer.getCurrentPingStatus()
-      #expect(pingStatus == nil)
-    }
+        let pingStatus = await observer.getCurrentPingStatus()
+        #expect(pingStatus == nil)
+      }
 
-    // MARK: - Stream Cleanup Tests
+      // MARK: - Stream Cleanup Tests
 
-    @Test("Cancel finishes all active path streams")
-    internal func cancelFinishesPathStreams() async throws {
-      let monitor = MockPathMonitor()
-      let observer = NetworkObserver(monitor: monitor)
+      @Test("Cancel finishes all active path streams")
+      internal func cancelFinishesPathStreams() async throws {
+        let monitor = MockPathMonitor()
+        let observer = NetworkObserver(monitor: monitor)
 
-      await observer.start(queue: .global())
+        await observer.start(queue: .global())
 
-      let stream = await observer.pathUpdates()
-      var iterator = stream.makeAsyncIterator()
+        let stream = await observer.pathUpdates()
+        var iterator = stream.makeAsyncIterator()
 
-      // Get first value
-      _ = await iterator.next()
-
-      // Cancel observer
-      await observer.cancel()
-
-      // Try to get next value - should complete
-      let nextValue = await iterator.next()
-      #expect(nextValue == nil)
-    }
-
-    @Test("Stream iteration completes after cancel")
-    internal func streamCompletesAfterCancel() async throws {
-      let monitor = MockPathMonitor()
-      let observer = NetworkObserver(monitor: monitor)
-
-      await observer.start(queue: .global())
-
-      let capture = TestValueCapture()
-
-      try await confirmation("Received initial status", expectedCount: 1) { confirm in
-        Task { @Sendable in
-          let stream = await observer.pathStatusStream
-          var count = 0
-          for await _ in stream {
-            count += 1
-            if count == 1 {
-              confirm()
-            } else {
-              // Should not receive values after cancel
-              await capture.set(boolValue: true)
-            }
-          }
-        }
-
-        // Wait for initial value confirmation
-        try await Task.sleep(for: .milliseconds(50))
+        // Get first value
+        _ = await iterator.next()
 
         // Cancel observer
         await observer.cancel()
 
-        // Give time to verify no additional values are received
-        try await Task.sleep(for: .milliseconds(100))
+        // Try to get next value - should complete
+        let nextValue = await iterator.next()
+        #expect(nextValue == nil)
       }
 
-      let receivedAfterCancel = await capture.boolValue
-      #expect(receivedAfterCancel != true)
+      @Test("Stream iteration completes after cancel")
+      internal func streamCompletesAfterCancel() async throws {
+        let monitor = MockPathMonitor()
+        let observer = NetworkObserver(monitor: monitor)
+
+        await observer.start(queue: .global())
+
+        let capture = TestValueCapture()
+
+        try await confirmation("Received initial status", expectedCount: 1) { confirm in
+          Task { @Sendable in
+            let stream = await observer.pathStatusStream
+            var count = 0
+            for await _ in stream {
+              count += 1
+              if count == 1 {
+                confirm()
+              } else {
+                // Should not receive values after cancel
+                await capture.set(boolValue: true)
+              }
+            }
+          }
+
+          // Wait for initial value confirmation
+          try await Task.sleep(for: .milliseconds(50))
+
+          // Cancel observer
+          await observer.cancel()
+
+          // Give time to verify no additional values are received
+          try await Task.sleep(for: .milliseconds(100))
+        }
+
+        let receivedAfterCancel = await capture.boolValue
+        #expect(receivedAfterCancel != true)
+      }
     }
   }
-}
+#endif

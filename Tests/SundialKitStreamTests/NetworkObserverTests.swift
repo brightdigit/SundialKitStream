@@ -29,5 +29,8 @@
 
 import Testing
 
-@Suite("NetworkObserver Tests")
+@Suite(
+  "NetworkObserver Tests",
+  .enabled(if: SupportedModule([.dispatch, .network]).isSupported)
+)
 internal enum NetworkObserverTests {}

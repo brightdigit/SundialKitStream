@@ -52,6 +52,7 @@ opt_in_rules:
   - nslocalizedstring_require_bundle
   - number_separator
   - object_literal
+  - one_declaration_per_file
   - operator_usage_whitespace
   - optional_enum_case_matching
   - overridden_super_call
@@ -115,7 +116,6 @@ excluded:
   - .build
   - Mint
   - Examples
-  - Sources/MistKit/Generated
 indentation_width:
   indentation_width: 2
 file_name:

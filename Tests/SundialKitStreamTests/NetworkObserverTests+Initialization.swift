@@ -27,115 +27,117 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-import Foundation
-import Testing
+#if canImport(Network)
+  import Foundation
+  import Testing
 
-@testable import SundialKitCore
-@testable import SundialKitNetwork
-@testable import SundialKitStream
+  @testable import SundialKitCore
+  @testable import SundialKitNetwork
+  @testable import SundialKitStream
 
-extension NetworkObserverTests {
-  @Suite("Initialization and Lifecycle Tests")
-  internal struct InitializationTests {
-    // MARK: - Initialization Tests
+  extension NetworkObserverTests {
+    @Suite("Initialization and Lifecycle Tests")
+    internal struct InitializationTests {
+      // MARK: - Initialization Tests
 
-    @Test("NetworkObserver initializes with monitor only")
-    internal func initializationWithMonitorOnly() async {
-      let monitor = MockPathMonitor()
-      let observer = NetworkObserver(monitor: monitor)
+      @Test("NetworkObserver initializes with monitor only")
+      internal func initializationWithMonitorOnly() async {
+        let monitor = MockPathMonitor()
+        let observer = NetworkObserver(monitor: monitor)
 
-      let currentPath = await observer.getCurrentPath()
-      let currentPingStatus = await observer.getCurrentPingStatus()
+        let currentPath = await observer.getCurrentPath()
+        let currentPingStatus = await observer.getCurrentPingStatus()
 
-      #expect(currentPath == nil)
-      #expect(currentPingStatus == nil)
+        #expect(currentPath == nil)
+        #expect(currentPingStatus == nil)
+      }
+
+      @Test("NetworkObserver initializes with monitor and ping")
+      internal func initializationWithMonitorAndPing() async {
+        let monitor = MockPathMonitor()
+        let ping = MockNetworkPing()
+        let observer = NetworkObserver(monitor: monitor, ping: ping)
+
+        let currentPath = await observer.getCurrentPath()
+        let currentPingStatus = await observer.getCurrentPingStatus()
+
+        #expect(currentPath == nil)
+        #expect(currentPingStatus == nil)
+      }
+
+      // MARK: - Start/Cancel Tests
+
+      @Test("Start monitoring begins path updates")
+      internal func startMonitoring() async {
+        let monitor = MockPathMonitor()
+        let observer = NetworkObserver(monitor: monitor)
+
+        await observer.start(queue: .global())
+
+        #expect(monitor.dispatchQueueLabel != nil)
+        #expect(monitor.isCancelled == false)
+
+        // Give time for async path update from start()
+        try? await Task.sleep(for: .milliseconds(10))
+
+        // Should receive initial path from start()
+        let currentPath = await observer.getCurrentPath()
+        #expect(currentPath != nil)
+        #expect(currentPath?.pathStatus == .satisfied(.wiredEthernet))
+      }
+
+      @Test("Cancel stops monitoring and finishes streams")
+      internal func cancelMonitoring() async {
+        let monitor = MockPathMonitor()
+        let observer = NetworkObserver(monitor: monitor)
+
+        await observer.start(queue: .global())
+        await observer.cancel()
+
+        #expect(monitor.isCancelled == true)
+      }
+
+      @Test("Path updates before start are not tracked")
+      internal func pathUpdatesBeforeStart() async {
+        let monitor = MockPathMonitor()
+        let observer = NetworkObserver(monitor: monitor)
+
+        // Don't call start()
+        let currentPath = await observer.getCurrentPath()
+        #expect(currentPath == nil)
+      }
+
+      @Test("Multiple start calls use latest queue")
+      internal func multipleStartCalls() async {
+        let monitor = MockPathMonitor()
+        let observer = NetworkObserver(monitor: monitor)
+
+        await observer.start(queue: .global())
+        let firstLabel = monitor.dispatchQueueLabel
+
+        await observer.start(queue: .main)
+        let secondLabel = monitor.dispatchQueueLabel
+
+        #expect(firstLabel != nil)
+        #expect(secondLabel != nil)
+        // Labels should be different since we used different queues
+      }
+
+      // MARK: - Ping Integration Tests
+
+      @Test("Ping status updates are not tracked without ping initialization")
+      internal func pingStatusWithoutPing() async {
+        let monitor = MockPathMonitor()
+        let observer = NetworkObserver(monitor: monitor)
+
+        await observer.start(queue: .global())
+
+        let currentPingStatus = await observer.getCurrentPingStatus()
+        #expect(currentPingStatus == nil)
+      }
+
+      // Note: Full ping integration testing would require NetworkMonitor-level tests
+      // since NetworkObserver doesn't directly manage ping lifecycle
     }
-
-    @Test("NetworkObserver initializes with monitor and ping")
-    internal func initializationWithMonitorAndPing() async {
-      let monitor = MockPathMonitor()
-      let ping = MockNetworkPing()
-      let observer = NetworkObserver(monitor: monitor, ping: ping)
-
-      let currentPath = await observer.getCurrentPath()
-      let currentPingStatus = await observer.getCurrentPingStatus()
-
-      #expect(currentPath == nil)
-      #expect(currentPingStatus == nil)
-    }
-
-    // MARK: - Start/Cancel Tests
-
-    @Test("Start monitoring begins path updates")
-    internal func startMonitoring() async {
-      let monitor = MockPathMonitor()
-      let observer = NetworkObserver(monitor: monitor)
-
-      await observer.start(queue: .global())
-
-      #expect(monitor.dispatchQueueLabel != nil)
-      #expect(monitor.isCancelled == false)
-
-      // Give time for async path update from start()
-      try? await Task.sleep(for: .milliseconds(10))
-
-      // Should receive initial path from start()
-      let currentPath = await observer.getCurrentPath()
-      #expect(currentPath != nil)
-      #expect(currentPath?.pathStatus == .satisfied(.wiredEthernet))
-    }
-
-    @Test("Cancel stops monitoring and finishes streams")
-    internal func cancelMonitoring() async {
-      let monitor = MockPathMonitor()
-      let observer = NetworkObserver(monitor: monitor)
-
-      await observer.start(queue: .global())
-      await observer.cancel()
-
-      #expect(monitor.isCancelled == true)
-    }
-
-    @Test("Path updates before start are not tracked")
-    internal func pathUpdatesBeforeStart() async {
-      let monitor = MockPathMonitor()
-      let observer = NetworkObserver(monitor: monitor)
-
-      // Don't call start()
-      let currentPath = await observer.getCurrentPath()
-      #expect(currentPath == nil)
-    }
-
-    @Test("Multiple start calls use latest queue")
-    internal func multipleStartCalls() async {
-      let monitor = MockPathMonitor()
-      let observer = NetworkObserver(monitor: monitor)
-
-      await observer.start(queue: .global())
-      let firstLabel = monitor.dispatchQueueLabel
-
-      await observer.start(queue: .main)
-      let secondLabel = monitor.dispatchQueueLabel
-
-      #expect(firstLabel != nil)
-      #expect(secondLabel != nil)
-      // Labels should be different since we used different queues
-    }
-
-    // MARK: - Ping Integration Tests
-
-    @Test("Ping status updates are not tracked without ping initialization")
-    internal func pingStatusWithoutPing() async {
-      let monitor = MockPathMonitor()
-      let observer = NetworkObserver(monitor: monitor)
-
-      await observer.start(queue: .global())
-
-      let currentPingStatus = await observer.getCurrentPingStatus()
-      #expect(currentPingStatus == nil)
-    }
-
-    // Note: Full ping integration testing would require NetworkMonitor-level tests
-    // since NetworkObserver doesn't directly manage ping lifecycle
   }
-}
+#endif
