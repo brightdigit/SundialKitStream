@@ -3,7 +3,7 @@
 //  SundialKitStream
 //
 //  Created by Leo Dion.
-//  Copyright © 2025 BrightDigit.
+//  Copyright © 2026 BrightDigit.
 //
 //  Permission is hereby granted, free of charge, to any person
 //  obtaining a copy of this software and associated documentation
@@ -27,27 +27,26 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-public import SundialKitNetwork
-
-// MARK: - Convenience Initializers
-@available(macOS 10.15, iOS 13, watchOS 6, tvOS 13, *)
-extension NetworkObserver where PingType == NeverPing {
-  /// Creates `NetworkObserver` without ping
-  public init(monitor: MonitorType) {
-    self.init(monitor: monitor, pingOrNil: nil)
-  }
-}
-
-@available(macOS 10.15, iOS 13, watchOS 6, tvOS 13, *)
-extension NetworkObserver {
-  /// Creates `NetworkObserver` with ping
-  public init(monitor: MonitorType, ping: PingType) {
-    self.init(monitor: monitor, pingOrNil: ping)
-  }
-}
-
 #if canImport(Network)
   public import Network
+  public import SundialKitNetwork
+
+  // MARK: - Convenience Initializers
+  @available(macOS 10.15, iOS 13, watchOS 6, tvOS 13, *)
+  extension NetworkObserver where PingType == NeverPing {
+    /// Creates `NetworkObserver` without ping
+    public init(monitor: MonitorType) {
+      self.init(monitor: monitor, pingOrNil: nil)
+    }
+  }
+
+  @available(macOS 10.15, iOS 13, watchOS 6, tvOS 13, *)
+  extension NetworkObserver {
+    /// Creates `NetworkObserver` with ping
+    public init(monitor: MonitorType, ping: PingType) {
+      self.init(monitor: monitor, pingOrNil: ping)
+    }
+  }
 
   @available(macOS 13, iOS 16, watchOS 9, tvOS 16, *)
   extension NetworkObserver where MonitorType == NWPathMonitor, PingType == NeverPing {

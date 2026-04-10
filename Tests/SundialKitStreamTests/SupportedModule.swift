@@ -1,5 +1,5 @@
 //
-//  ConnectivityStateManager.swift
+//  SupportedModule.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
@@ -27,52 +27,28 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-public import Foundation
-public import SundialKitConnectivity
-public import SundialKitCore
+internal struct SupportedModule: OptionSet, Hashable {
+  internal static let dispatch: Self = .init(rawValue: 1)
+  internal static let network: Self = .init(rawValue: 2)
 
-/// Manages ConnectivityState and notifies stream subscribers of changes
-///
-/// This type coordinates state updates with the StreamContinuationManager,
-/// ensuring all subscribers receive state change notifications.
-@available(macOS 10.15, iOS 13, watchOS 6, tvOS 13, *)
-public actor ConnectivityStateManager {
-  // MARK: - Properties
+  private static let supported: Self = {
+    var values: [Self] = []
+    #if canImport(Network)
+      values.append(.network)
+    #endif
+    #if canImport(Dispatch)
+      values.append(.dispatch)
+    #endif
+    return .init(values)
+  }()
 
-  internal var state: ConnectivityState = .initial
-  internal let continuationManager: StreamContinuationManager
+  internal let rawValue: Int
 
-  // MARK: - State Access
-
-  internal var currentState: ConnectivityState {
-    state
+  internal var isSupported: Bool {
+    self.isSubset(of: Self.supported)
   }
 
-  internal var activationState: ActivationState? {
-    state.activationState
-  }
-
-  internal var activationError: (any Error)? {
-    state.activationError
-  }
-
-  internal var isReachable: Bool {
-    state.isReachable
-  }
-
-  internal var isPairedAppInstalled: Bool {
-    state.isPairedAppInstalled
-  }
-
-  #if os(iOS)
-    internal var isPaired: Bool {
-      state.isPaired
-    }
-  #endif
-
-  // MARK: - Initialization
-
-  internal init(continuationManager: StreamContinuationManager) {
-    self.continuationManager = continuationManager
+  internal init(rawValue: Int) {
+    self.rawValue = rawValue
   }
 }
