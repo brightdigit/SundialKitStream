@@ -74,6 +74,7 @@ jobs:
       - uses: brightdigit/swift-build@v1
         id: build
         with:
+          scheme: ${{ env.PACKAGE_NAME }}
           type: ${{ matrix.type }}
       - name: Install curl
         if: steps.build.outputs.contains-code-coverage == 'true'
@@ -116,11 +117,7 @@ jobs:
         uses: brightdigit/swift-build@v1
         with:
           scheme: ${{ env.PACKAGE_NAME }}
-          type: ${{ matrix.type }}
           xcode: ${{ matrix.xcode }}
-          deviceName: ${{ matrix.deviceName }}
-          osVersion: ${{ matrix.osVersion }}
-          download-platform: ${{ matrix.download-platform }}
 
       # Common Coverage Steps
       - name: Process Coverage
@@ -257,7 +254,7 @@ jobs:
         swift:
           - version: "6.2"
           - version: "6.3"
-        android-api-level: [33, 34, 35, 36]
+        android-api-level: [33, 36]
     steps:
       - uses: actions/checkout@v6
       - name: Free disk space

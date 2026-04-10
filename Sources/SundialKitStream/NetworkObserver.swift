@@ -74,6 +74,7 @@ public import SundialKitCore
 
     /// Stream of path status changes
     public var pathStatusStream: AsyncStream<PathStatus> {
+      // .unbounded: connectivity state changes must never be dropped under back-pressure
       AsyncStream<PathStatus>(bufferingPolicy: .unbounded) { continuation in
         let id = UUID()
         pathStatusContinuations[id] = continuation
@@ -88,6 +89,7 @@ public import SundialKitCore
 
     /// Stream of expensive state changes
     public var isExpensiveStream: AsyncStream<Bool> {
+      // .unbounded: connectivity state changes must never be dropped under back-pressure
       AsyncStream<Bool>(bufferingPolicy: .unbounded) { continuation in
         let id = UUID()
         isExpensiveContinuations[id] = continuation
@@ -102,6 +104,7 @@ public import SundialKitCore
 
     /// Stream of constrained state changes
     public var isConstrainedStream: AsyncStream<Bool> {
+      // .unbounded: connectivity state changes must never be dropped under back-pressure
       AsyncStream<Bool>(bufferingPolicy: .unbounded) { continuation in
         let id = UUID()
         isConstrainedContinuations[id] = continuation
@@ -181,6 +184,7 @@ public import SundialKitCore
 
     /// Stream of path updates
     public func pathUpdates() -> AsyncStream<MonitorType.PathType> {
+      // .unbounded: connectivity state changes must never be dropped under back-pressure
       AsyncStream<MonitorType.PathType>(bufferingPolicy: .unbounded) { continuation in
         let id = UUID()
         pathContinuations[id] = continuation
@@ -198,6 +202,7 @@ public import SundialKitCore
 
     /// Stream of ping status updates
     public func pingStatusUpdates() -> AsyncStream<PingType.StatusType> {
+      // .unbounded: connectivity state changes must never be dropped under back-pressure
       AsyncStream<PingType.StatusType>(bufferingPolicy: .unbounded) { continuation in
         let id = UUID()
         pingStatusContinuations[id] = continuation

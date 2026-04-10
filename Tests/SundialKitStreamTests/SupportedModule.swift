@@ -1,5 +1,5 @@
 //
-//  WASMSupport.swift
+//  SupportedModule.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
