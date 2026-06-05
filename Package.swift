@@ -63,11 +63,9 @@ let package = Package(
     )
   ],
   dependencies: [
-    // Pinned to the matching SundialKit beta branch during co-development: the two
-    // packages evolve together until the API stabilizes. This intentionally trades
-    // build reproducibility for that lockstep — move to a version constraint
-    // (e.g. .upToNextMinor(from:)) once SundialKit cuts a release tag.
-    .package(url: "https://github.com/brightdigit/SundialKit.git", branch: "v2.0.0-alpha.4")
+    // CI rewrites this to a remote URL pinned by 40-char revision, which exceeds the line length limit.
+    // swiftlint:disable:next line_length
+    .package(name: "SundialKit", path: "../SundialKit")
   ],
   targets: [
     .target(

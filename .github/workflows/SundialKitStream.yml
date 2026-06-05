@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - atleast-beta.6
     tags:
       - 'v[0-9]*.[0-9]*.[0-9]*'
     paths-ignore:
@@ -14,6 +15,7 @@ on:
     branches:
       - main
       - 'v[0-9]*.[0-9]*.[0-9]*'
+      - atleast-beta.6
     paths-ignore:
       - '**.md'
       - 'Docs/**'
@@ -41,6 +43,7 @@ jobs:
         id: set-matrix
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/main" \
+            || "${{ github.ref }}" == "refs/heads/atleast-beta.6" \
             || "${{ github.event_name }}" == "pull_request" \
             || "${{ github.ref }}" == refs/tags/* ]]; then
             echo "full-matrix=true" >> "$GITHUB_OUTPUT"
@@ -86,8 +89,6 @@ jobs:
         id: build
         with:
           type: ${{ matrix.type }}
-          # Required: setup-sundialkit deletes Package.resolved and SundialKit is a
-          # moving branch pin, so swift-build must not pass --force-resolved-versions.
           skip-package-resolved: true
       - name: Install curl
         if: steps.build.outputs.contains-code-coverage == 'true'
@@ -209,7 +210,9 @@ jobs:
             runs-on: macos-26
             xcode: "/Applications/Xcode_26.5.app"
             deviceName: "Apple TV"
-            osVersion: "26.5"            
+            osVersion: "26.5"
+            download-platform: true
+
     steps:
       - uses: actions/checkout@v6
 
