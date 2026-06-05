@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - atleast-beta.6
     tags:
       - 'v[0-9]*.[0-9]*.[0-9]*'
     paths-ignore:
@@ -14,6 +15,7 @@ on:
     branches:
       - main
       - 'v[0-9]*.[0-9]*.[0-9]*'
+      - atleast-beta.6
     paths-ignore:
       - '**.md'
       - 'Docs/**'
@@ -25,6 +27,7 @@ concurrency:
 
 env:
   PACKAGE_NAME: SundialKitStream
+  SUNDIALKIT_BRANCH: v2.0.0-alpha.3
 jobs:
   configure:
     name: Configure Build Matrix
@@ -40,6 +43,7 @@ jobs:
         id: set-matrix
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/main" \
+            || "${{ github.ref }}" == "refs/heads/atleast-beta.6" \
             || "${{ github.event_name }}" == "pull_request" \
             || "${{ github.ref }}" == refs/tags/* ]]; then
             echo "full-matrix=true" >> "$GITHUB_OUTPUT"
@@ -71,11 +75,16 @@ jobs:
             type: wasm-embedded
     steps:
       - uses: actions/checkout@v6
+      - name: Setup SundialKit
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        with:
+          branch: ${{ env.SUNDIALKIT_BRANCH }}
       - uses: brightdigit/swift-build@v1
         id: build
         with:
           scheme: ${{ env.PACKAGE_NAME }}
           type: ${{ matrix.type }}
+          skip-package-resolved: true
       - name: Install curl
         if: steps.build.outputs.contains-code-coverage == 'true'
         run: |
@@ -107,10 +116,15 @@ jobs:
         include:
           # SPM Build — no platform type; matrix.type evaluates to '' by design
           - runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
+            xcode: "/Applications/Xcode_26.5.app"
 
     steps:
       - uses: actions/checkout@v6
+
+      - name: Setup SundialKit
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        with:
+          branch: ${{ env.SUNDIALKIT_BRANCH }}
 
       - name: Build and Test
         id: build
@@ -118,6 +132,7 @@ jobs:
         with:
           scheme: ${{ env.PACKAGE_NAME }}
           xcode: ${{ matrix.xcode }}
+          skip-package-resolved: true
 
       # Common Coverage Steps
       - name: Process Coverage
@@ -147,9 +162,9 @@ jobs:
           # iOS Build Matrix
           - type: ios
             runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
+            xcode: "/Applications/Xcode_26.5.app"
             deviceName: "iPhone 17 Pro"
-            osVersion: "26.4"
+            osVersion: "26.5"
             download-platform: true
 
           - type: ios
@@ -161,9 +176,9 @@ jobs:
           # watchOS Build Matrix
           - type: watchos
             runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
+            xcode: "/Applications/Xcode_26.5.app"
             deviceName: "Apple Watch Ultra 3 (49mm)"
-            osVersion: "26.4"
+            osVersion: "26.5"
             download-platform: true
 
           - type: watchos
@@ -175,13 +190,18 @@ jobs:
           # tvOS Build Matrix
           - type: tvos
             runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
+            xcode: "/Applications/Xcode_26.5.app"
             deviceName: "Apple TV"
-            osVersion: "26.4"
+            osVersion: "26.5"
             download-platform: true
 
     steps:
       - uses: actions/checkout@v6
+
+      - name: Setup SundialKit
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        with:
+          branch: ${{ env.SUNDIALKIT_BRANCH }}
 
       - name: Build and Test
         id: build
@@ -193,6 +213,7 @@ jobs:
           deviceName: ${{ matrix.deviceName }}
           osVersion: ${{ matrix.osVersion }}
           download-platform: ${{ matrix.download-platform }}
+          skip-package-resolved: true
 
       # Common Coverage Steps
       - name: Process Coverage
@@ -227,11 +248,16 @@ jobs:
       - name: Enable git symlinks
         shell: pwsh
         run: git config --global core.symlinks true
+      - name: Setup SundialKit
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        with:
+          branch: ${{ env.SUNDIALKIT_BRANCH }}
       - uses: brightdigit/swift-build@v1
         id: build
         with:
           windows-swift-version: ${{ matrix.swift.version }}
           windows-swift-build: ${{ matrix.swift.build }}
+          skip-package-resolved: true
       - name: Upload coverage to Codecov
         if: steps.build.outputs.contains-code-coverage == 'true'
         uses: codecov/codecov-action@v6
@@ -254,9 +280,16 @@ jobs:
         swift:
           - version: "6.2"
           - version: "6.3"
-        android-api-level: [33, 36]
+        # API 36 dropped: Swift 6.x Android SDK lacks API-36 CRT objects
+        # (crtbegin_dynamic.o/crtend_android.o), link fails. Re-add when the
+        # SDK ships an NDK r28+ sysroot. See skiptools/swift-android-action.
+        android-api-level: [33, 35]
     steps:
       - uses: actions/checkout@v6
+      - name: Setup SundialKit
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        with:
+          branch: ${{ env.SUNDIALKIT_BRANCH }}
       - name: Free disk space
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
@@ -274,6 +307,7 @@ jobs:
           android-swift-version: ${{ matrix.swift.version }}
           android-api-level: ${{ matrix.android-api-level }}
           android-run-tests: true
+          skip-package-resolved: true
       - name: Upload coverage to Codecov
         if: steps.build.outputs.contains-code-coverage == 'true'
         uses: codecov/codecov-action@v6
@@ -292,7 +326,12 @@ jobs:
     needs: [build-ubuntu, build-macos, build-windows, build-macos-full, build-android]
     steps:
       - uses: actions/checkout@v6
-      - uses: jdx/mise-action@v4
+      - name: Setup SundialKit
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        with:
+          branch: ${{ env.SUNDIALKIT_BRANCH }}
+      - name: Install mise
+        uses: jdx/mise-action@v4
         with:
           cache: true
       - name: Lint
