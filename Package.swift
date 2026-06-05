@@ -59,6 +59,8 @@ let package = Package(
     )
   ],
   dependencies: [
+    // CI rewrites this to a remote URL pinned by 40-char revision, which exceeds the line length limit.
+    // swiftlint:disable:next line_length
     .package(name: "SundialKit", path: "../SundialKit")
   ],
   targets: [
