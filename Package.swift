@@ -68,9 +68,9 @@ let package = Package(
     )
   ],
   dependencies: [
-    // Pinned to the matching SundialKit release tag. The two packages are
-    // co-developed and versioned in lockstep during the alpha series.
-    .package(url: "https://github.com/brightdigit/SundialKit.git", from: "2.0.0-alpha.3")
+    // CI rewrites this to a remote URL pinned by 40-char revision, which exceeds the line length limit.
+    // swiftlint:disable:next line_length
+    .package(name: "SundialKit", path: "../SundialKit")
   ],
   targets: [
     .target(
