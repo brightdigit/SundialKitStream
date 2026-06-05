@@ -27,21 +27,21 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if canImport(Network)
-  import Foundation
-  import Testing
+import Foundation
+import Testing
 
-  @testable import SundialKitCore
-  @testable import SundialKitNetwork
-  @testable import SundialKitStream
+@testable import SundialKitCore
+@testable import SundialKitNetwork
+@testable import SundialKitStream
 
-  extension NetworkObserverTests {
-    @Suite("Stream Tests")
-    internal struct StreamTests {
-      // MARK: - Path Updates Stream Tests
+extension NetworkObserverTests {
+  @Suite("Stream Tests", .enabled(if: SupportedModule.network.isSupported))
+  internal struct StreamTests {
+    // MARK: - Path Updates Stream Tests
 
-      @Test("pathUpdates stream receives initial and subsequent paths")
-      internal func pathUpdatesStream() async throws {
+    @Test("pathUpdates stream receives initial and subsequent paths")
+    internal func pathUpdatesStream() async throws {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
@@ -69,123 +69,94 @@
         #expect(secondPath?.pathStatus == .satisfied(.cellular))
         #expect(secondPath?.isConstrained == true)
         #expect(secondPath?.isExpensive == true)
-      }
+      #else
+        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+      #endif
+    }
 
-      @Test("pathStatusStream extracts status from paths")
-      internal func pathStatusStream() async throws {
+    @Test("pathStatusStream extracts status from paths")
+    internal func pathStatusStream() async throws {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
         await observer.start(queue: .global())
 
-        try await confirmation("Received path status", expectedCount: 2) { receivedStatus in
-          let capture = TestValueCapture()
+        let stream = await observer.pathStatusStream
+        var iterator = stream.makeAsyncIterator()
 
-          Task { @Sendable in
-            let stream = await observer.pathStatusStream
-            for await status in stream {
-              await capture.append(pathStatus: status)
-              receivedStatus()
-              let count = await capture.pathStatuses.count
-              if count >= 2 { break }
-            }
-          }
+        // Awaiting blocks until the subscriber is registered and the initial
+        // status is delivered — no timing assumptions required.
+        let firstStatus = await iterator.next()
+        #expect(firstStatus == .satisfied(.wiredEthernet))
 
-          // Wait briefly for initial status
-          try await Task.sleep(for: .milliseconds(10))
+        // The subscriber is now live, so the next path is reliably delivered.
+        monitor.sendPath(MockPath(pathStatus: .unsatisfied(.localNetworkDenied)))
 
-          // Send new path update
-          let newPath = MockPath(pathStatus: .unsatisfied(.localNetworkDenied))
-          monitor.sendPath(newPath)
+        let secondStatus = await iterator.next()
+        #expect(secondStatus == .unsatisfied(.localNetworkDenied))
+      #else
+        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+      #endif
+    }
 
-          // Give time for async delivery
-          try await Task.sleep(for: .milliseconds(50))
-
-          let statuses = await capture.pathStatuses
-          #expect(statuses.count == 2)
-          #expect(statuses[0] == .satisfied(.wiredEthernet))
-          #expect(statuses[1] == .unsatisfied(.localNetworkDenied))
-        }
-      }
-
-      @Test("isExpensiveStream tracks expensive status")
-      internal func isExpensiveStream() async throws {
+    @Test("isExpensiveStream tracks expensive status")
+    internal func isExpensiveStream() async throws {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
         await observer.start(queue: .global())
 
-        try await confirmation("Received expensive status", expectedCount: 2) { receivedValue in
-          let capture = TestValueCapture()
+        let stream = await observer.isExpensiveStream
+        var iterator = stream.makeAsyncIterator()
 
-          Task { @Sendable in
-            let stream = await observer.isExpensiveStream
-            for await value in stream {
-              await capture.append(boolValue: value)
-              receivedValue()
-              let count = await capture.boolValues.count
-              if count >= 2 { break }
-            }
-          }
+        // Awaiting blocks until the subscriber is registered and the initial
+        // value is delivered — no timing assumptions required.
+        let firstValue = await iterator.next()
+        #expect(firstValue == false)
 
-          // Wait briefly for initial value
-          try await Task.sleep(for: .milliseconds(10))
+        // The subscriber is now live, so the next path is reliably delivered.
+        monitor.sendPath(MockPath(isExpensive: true, pathStatus: .satisfied(.cellular)))
 
-          // Send expensive path
-          let expensivePath = MockPath(isExpensive: true, pathStatus: .satisfied(.cellular))
-          monitor.sendPath(expensivePath)
+        let secondValue = await iterator.next()
+        #expect(secondValue == true)
+      #else
+        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+      #endif
+    }
 
-          // Give time for async delivery
-          try await Task.sleep(for: .milliseconds(50))
-
-          let values = await capture.boolValues
-          #expect(values.count == 2)
-          #expect(values[0] == false)
-          #expect(values[1] == true)
-        }
-      }
-
-      @Test("isConstrainedStream tracks constrained status")
-      internal func isConstrainedStream() async throws {
+    @Test("isConstrainedStream tracks constrained status")
+    internal func isConstrainedStream() async throws {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
         await observer.start(queue: .global())
 
-        try await confirmation("Received constrained status", expectedCount: 2) { receivedValue in
-          let capture = TestValueCapture()
+        let stream = await observer.isConstrainedStream
+        var iterator = stream.makeAsyncIterator()
 
-          Task { @Sendable in
-            let stream = await observer.isConstrainedStream
-            for await value in stream {
-              await capture.append(boolValue: value)
-              receivedValue()
-              let count = await capture.boolValues.count
-              if count >= 2 { break }
-            }
-          }
+        // Awaiting blocks until the subscriber is registered and the initial
+        // value is delivered — no timing assumptions required.
+        let firstValue = await iterator.next()
+        #expect(firstValue == false)
 
-          // Wait briefly for initial value
-          try await Task.sleep(for: .milliseconds(10))
+        // The subscriber is now live, so the next path is reliably delivered.
+        monitor.sendPath(MockPath(isConstrained: true, pathStatus: .satisfied(.wifi)))
 
-          // Send constrained path
-          let constrainedPath = MockPath(isConstrained: true, pathStatus: .satisfied(.wifi))
-          monitor.sendPath(constrainedPath)
+        let secondValue = await iterator.next()
+        #expect(secondValue == true)
+      #else
+        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+      #endif
+    }
 
-          // Give time for async delivery
-          try await Task.sleep(for: .milliseconds(50))
+    // MARK: - Multiple Subscribers Tests
 
-          let values = await capture.boolValues
-          #expect(values.count == 2)
-          #expect(values[0] == false)
-          #expect(values[1] == true)
-        }
-      }
-
-      // MARK: - Multiple Subscribers Tests
-
-      @Test("Multiple path update subscribers receive same updates")
-      internal func multiplePathSubscribers() async throws {
+    @Test("Multiple path update subscribers receive same updates")
+    internal func multiplePathSubscribers() async throws {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
@@ -216,7 +187,9 @@
 
         #expect(path1Second?.pathStatus == .satisfied(.cellular))
         #expect(path2Second?.pathStatus == .satisfied(.cellular))
-      }
+      #else
+        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+      #endif
     }
   }
-#endif
+}
