@@ -22,7 +22,7 @@ on:
     - cron: '20 11 * * 3'
 
 env:
-  SUNDIALKIT_BRANCH: atleast-beta.6
+  SUNDIALKIT_BRANCH: v2.0.0-alpha.3
 
 jobs:
   analyze:
@@ -61,7 +61,7 @@ jobs:
         swift package --version
 
     - name: Setup SundialKit
-      uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@atleast-beta.6
+      uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
       with:
         branch: ${{ env.SUNDIALKIT_BRANCH }}
 
