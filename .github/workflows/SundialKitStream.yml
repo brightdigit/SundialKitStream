@@ -27,7 +27,7 @@ concurrency:
 
 env:
   PACKAGE_NAME: SundialKitStream
-  SUNDIALKIT_BRANCH: v2.0.0-alpha.3
+  SUNDIALKIT_BRANCH: atleast-beta.6
 jobs:
   configure:
     name: Configure Build Matrix
