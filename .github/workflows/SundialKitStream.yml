@@ -215,9 +215,6 @@ jobs:
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
 
-      - name: Ensure remote dependencies
-        run: ./Scripts/ensure-remote-deps.sh
-
       - name: Build and Test
         id: build
         uses: brightdigit/swift-build@v1
