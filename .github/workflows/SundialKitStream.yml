@@ -173,7 +173,14 @@ jobs:
             deviceName: "iPhone 16e"
             osVersion: "18.5"
 
-          # watchOS Build Matrix
+          - type: ios
+            runs-on: macos-15
+            xcode: "/Applications/Xcode_16.3.app"
+            deviceName: "iPhone 16"
+            osVersion: "18.4"
+            download-platform: true
+
+          # watchOS Build Matrix - Xcode 16.x+ (Swift 6.1+)
           - type: watchos
             runs-on: macos-26
             xcode: "/Applications/Xcode_26.5.app"
@@ -187,14 +194,19 @@ jobs:
             deviceName: "Apple Watch Series 10 (46mm)"
             osVersion: "11.5"
 
+          - type: watchos
+            runs-on: macos-15
+            xcode: "/Applications/Xcode_16.3.app"
+            deviceName: "Apple Watch Series 10 (42mm)"
+            osVersion: "11.4"
+            download-platform: true
+
           # tvOS Build Matrix
           - type: tvos
             runs-on: macos-26
             xcode: "/Applications/Xcode_26.5.app"
             deviceName: "Apple TV"
-            osVersion: "26.5"
-            download-platform: true
-
+            osVersion: "26.5"            
     steps:
       - uses: actions/checkout@v6
 

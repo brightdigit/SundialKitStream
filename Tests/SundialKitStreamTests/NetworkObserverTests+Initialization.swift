@@ -27,21 +27,21 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if canImport(Network)
-  import Foundation
-  import Testing
+import Foundation
+import Testing
 
-  @testable import SundialKitCore
-  @testable import SundialKitNetwork
-  @testable import SundialKitStream
+@testable import SundialKitCore
+@testable import SundialKitNetwork
+@testable import SundialKitStream
 
-  extension NetworkObserverTests {
-    @Suite("Initialization and Lifecycle Tests")
-    internal struct InitializationTests {
-      // MARK: - Initialization Tests
+extension NetworkObserverTests {
+  @Suite("Initialization and Lifecycle Tests", .enabled(if: SupportedModule.network.isSupported))
+  internal struct InitializationTests {
+    // MARK: - Initialization Tests
 
-      @Test("NetworkObserver initializes with monitor only")
-      internal func initializationWithMonitorOnly() async {
+    @Test("NetworkObserver initializes with monitor only")
+    internal func initializationWithMonitorOnly() async {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
@@ -50,10 +50,14 @@
 
         #expect(currentPath == nil)
         #expect(currentPingStatus == nil)
-      }
+      #else
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
+      #endif
+    }
 
-      @Test("NetworkObserver initializes with monitor and ping")
-      internal func initializationWithMonitorAndPing() async {
+    @Test("NetworkObserver initializes with monitor and ping")
+    internal func initializationWithMonitorAndPing() async {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let ping = MockNetworkPing()
         let observer = NetworkObserver(monitor: monitor, ping: ping)
@@ -63,12 +67,16 @@
 
         #expect(currentPath == nil)
         #expect(currentPingStatus == nil)
-      }
+      #else
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
+      #endif
+    }
 
-      // MARK: - Start/Cancel Tests
+    // MARK: - Start/Cancel Tests
 
-      @Test("Start monitoring begins path updates")
-      internal func startMonitoring() async {
+    @Test("Start monitoring begins path updates")
+    internal func startMonitoring() async {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
@@ -84,10 +92,14 @@
         let currentPath = await observer.getCurrentPath()
         #expect(currentPath != nil)
         #expect(currentPath?.pathStatus == .satisfied(.wiredEthernet))
-      }
+      #else
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
+      #endif
+    }
 
-      @Test("Cancel stops monitoring and finishes streams")
-      internal func cancelMonitoring() async {
+    @Test("Cancel stops monitoring and finishes streams")
+    internal func cancelMonitoring() async {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
@@ -95,20 +107,28 @@
         await observer.cancel()
 
         #expect(monitor.isCancelled == true)
-      }
+      #else
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
+      #endif
+    }
 
-      @Test("Path updates before start are not tracked")
-      internal func pathUpdatesBeforeStart() async {
+    @Test("Path updates before start are not tracked")
+    internal func pathUpdatesBeforeStart() async {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
         // Don't call start()
         let currentPath = await observer.getCurrentPath()
         #expect(currentPath == nil)
-      }
+      #else
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
+      #endif
+    }
 
-      @Test("Multiple start calls use latest queue")
-      internal func multipleStartCalls() async {
+    @Test("Multiple start calls use latest queue")
+    internal func multipleStartCalls() async {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
@@ -120,13 +140,17 @@
 
         #expect(firstLabel != nil)
         #expect(secondLabel != nil)
-        // Labels should be different since we used different queues
-      }
+      // Labels should be different since we used different queues
+      #else
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
+      #endif
+    }
 
-      // MARK: - Ping Integration Tests
+    // MARK: - Ping Integration Tests
 
-      @Test("Ping status updates are not tracked without ping initialization")
-      internal func pingStatusWithoutPing() async {
+    @Test("Ping status updates are not tracked without ping initialization")
+    internal func pingStatusWithoutPing() async {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
@@ -134,10 +158,12 @@
 
         let currentPingStatus = await observer.getCurrentPingStatus()
         #expect(currentPingStatus == nil)
-      }
-
-      // Note: Full ping integration testing would require NetworkMonitor-level tests
-      // since NetworkObserver doesn't directly manage ping lifecycle
+      #else
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
+      #endif
     }
+
+    // Note: Full ping integration testing would require NetworkMonitor-level tests
+    // since NetworkObserver doesn't directly manage ping lifecycle
   }
-#endif
+}
