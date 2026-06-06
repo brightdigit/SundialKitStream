@@ -68,7 +68,7 @@ extension NetworkObserverTests {
         currentPath = await observer.getCurrentPath()
         #expect(currentPath?.pathStatus == .satisfied(.wifi))
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -83,7 +83,7 @@ extension NetworkObserverTests {
         let pingStatus = await observer.getCurrentPingStatus()
         #expect(pingStatus == nil)
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -110,7 +110,7 @@ extension NetworkObserverTests {
         let nextValue = await iterator.next()
         #expect(nextValue == nil)
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -152,7 +152,7 @@ extension NetworkObserverTests {
         let receivedAfterCancel = await capture.boolValue
         #expect(receivedAfterCancel != true)
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
   }

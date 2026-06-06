@@ -51,7 +51,7 @@ extension NetworkObserverTests {
         #expect(currentPath == nil)
         #expect(currentPingStatus == nil)
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -68,7 +68,7 @@ extension NetworkObserverTests {
         #expect(currentPath == nil)
         #expect(currentPingStatus == nil)
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -93,7 +93,7 @@ extension NetworkObserverTests {
         #expect(currentPath != nil)
         #expect(currentPath?.pathStatus == .satisfied(.wiredEthernet))
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -108,7 +108,7 @@ extension NetworkObserverTests {
 
         #expect(monitor.isCancelled == true)
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -122,7 +122,7 @@ extension NetworkObserverTests {
         let currentPath = await observer.getCurrentPath()
         #expect(currentPath == nil)
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -140,9 +140,9 @@ extension NetworkObserverTests {
 
         #expect(firstLabel != nil)
         #expect(secondLabel != nil)
-        // Labels should be different since we used different queues
+      // Labels should be different since we used different queues
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -159,7 +159,7 @@ extension NetworkObserverTests {
         let currentPingStatus = await observer.getCurrentPingStatus()
         #expect(currentPingStatus == nil)
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 

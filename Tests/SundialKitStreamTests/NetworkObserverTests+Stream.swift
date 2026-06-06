@@ -70,7 +70,7 @@ extension NetworkObserverTests {
         #expect(secondPath?.isConstrained == true)
         #expect(secondPath?.isExpensive == true)
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -96,7 +96,7 @@ extension NetworkObserverTests {
         let secondStatus = await iterator.next()
         #expect(secondStatus == .unsatisfied(.localNetworkDenied))
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -122,7 +122,7 @@ extension NetworkObserverTests {
         let secondValue = await iterator.next()
         #expect(secondValue == true)
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -148,7 +148,7 @@ extension NetworkObserverTests {
         let secondValue = await iterator.next()
         #expect(secondValue == true)
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
 
@@ -188,7 +188,7 @@ extension NetworkObserverTests {
         #expect(path1Second?.pathStatus == .satisfied(.cellular))
         #expect(path2Second?.pathStatus == .satisfied(.cellular))
       #else
-        Issue.record("This test requires the Network framework and should be disabled on this platform.")
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
       #endif
     }
   }
