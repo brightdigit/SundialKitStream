@@ -42,6 +42,8 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
   internal var isPaired: Bool = false
   internal var activationState: ActivationState = .notActivated
   internal var receivedApplicationContext: ConnectivityMessage?
+  internal var outstandingUserInfoTransferCount = 0
+  internal var outstandingFileTransferCount = 0
 
   internal func activate() throws {}
 
@@ -56,4 +58,8 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
     _ data: Data,
     _ completion: @escaping (Result<Data, any Error>) -> Void
   ) {}
+
+  internal func transferUserInfo(_ userInfo: ConnectivityMessage) {}
+
+  internal func transferFile(_ fileData: Data, metadata: ConnectivityMessage?) {}
 }
