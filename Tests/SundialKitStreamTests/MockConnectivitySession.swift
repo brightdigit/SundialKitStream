@@ -56,4 +56,8 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
     _ data: Data,
     _ completion: @escaping (Result<Data, any Error>) -> Void
   ) {}
+
+  internal func transferUserInfo(_ userInfo: ConnectivityMessage) {}
+
+  internal func transferFile(_ fileURL: URL, metadata: ConnectivityMessage?) {}
 }

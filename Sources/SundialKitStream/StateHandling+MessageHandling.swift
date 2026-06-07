@@ -117,4 +117,23 @@ extension StateHandling where Self: MessageHandling & Sendable {
       await handleBinaryMessage(messageData, replyHandler: replyHandler)
     }
   }
+
+  /// Handles a received queued dictionary (`transferUserInfo` partner).
+  ///
+  /// Routing queued transfers into the message stream lands in the Phase 2
+  /// stream-routing work (brightdigit/SundialKitStream#12).
+  nonisolated public func session(
+    _: any ConnectivitySession,
+    didReceiveUserInfo _: ConnectivityMessage
+  ) {}
+
+  /// Handles a received queued file's contents (`transferFile` partner).
+  ///
+  /// Routing queued transfers into the message stream lands in the Phase 2
+  /// stream-routing work (brightdigit/SundialKitStream#12).
+  nonisolated public func session(
+    _: any ConnectivitySession,
+    didReceiveFile _: Data,
+    metadata _: ConnectivityMessage?
+  ) {}
 }
