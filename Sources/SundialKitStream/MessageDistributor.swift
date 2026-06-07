@@ -156,6 +156,12 @@ public actor MessageDistributor {
     }
   }
 
+  /// Handles a received queued file's contents (`transferFile` partner).
+  ///
+  /// `metadata` is an optional sidecar dictionary and is **not** used to decode
+  /// the message: the `BinaryMessageEncoder` type footer embedded in `data`
+  /// already carries the type identity (parity with `sendMessageData`). It is
+  /// accepted for protocol/future use and currently ignored.
   internal func handleFile(_ data: Data, metadata _: ConnectivityMessage?) async {
     // Decode and send to typed stream subscribers
     if let decoder = messageDecoder {

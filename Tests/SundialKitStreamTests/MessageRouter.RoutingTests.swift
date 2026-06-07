@@ -37,8 +37,18 @@ import Testing
 extension MessageRouter {
   @Suite("MessageRouter routing")
   internal struct RoutingTests {
+    /// Minimal `BinaryMessagable` relying on the synthesized `parameters()`/`init(from:)`.
+    private struct BinaryProbe: BinaryMessagable {
+      static let key: String = "probe"
+      let value: String
+
+      init(value: String) { self.value = value }
+      init(from data: Data) throws { self.value = String(bytes: data, encoding: .utf8) ?? "" }
+      func encode() throws -> Data { Data(value.utf8) }
+    }
+
     private static let message: ConnectivityMessage = ["key": "value"]
-    private static let data = Data([0x01, 0x02, 0x03])
+    private static let binaryMessage = BinaryProbe(value: "probe")
 
     // MARK: - Dictionary Routing
 
@@ -81,7 +91,7 @@ extension MessageRouter {
       session.isPairedAppInstalled = true
       let router = MessageRouter(session: session)
 
-      _ = try await router.send(Self.message, useApplicationContext: true)
+      _ = try await router.send(Self.message, options: .useApplicationContext)
 
       #expect(session.applicationContexts.count == 1)
       #expect(session.transferredUserInfo.isEmpty)
@@ -107,7 +117,7 @@ extension MessageRouter {
       session.isReachable = true
       let router = MessageRouter(session: session)
 
-      _ = try await router.sendBinary(Self.data, originalMessage: Self.message)
+      _ = try await router.sendBinary(Self.binaryMessage)
 
       #expect(session.sentMessageData.count == 1)
       #expect(session.transferredFiles.isEmpty)
@@ -121,10 +131,12 @@ extension MessageRouter {
       session.isPairedAppInstalled = true
       let router = MessageRouter(session: session)
 
-      let result = try await router.sendBinary(Self.data, originalMessage: Self.message)
+      let result = try await router.sendBinary(Self.binaryMessage)
 
       #expect(session.transferredFiles.count == 1)
-      #expect(session.transferredFiles.first?.data == Self.data)
+      #expect(
+        session.transferredFiles.first?.data
+          == (try BinaryMessageEncoder.encode(Self.binaryMessage)))
       #expect(session.sentMessageData.isEmpty)
       guard case .applicationContext(let transport) = result.context else {
         Issue.record("Expected applicationContext send context")
@@ -140,11 +152,7 @@ extension MessageRouter {
       session.isPairedAppInstalled = true
       let router = MessageRouter(session: session)
 
-      _ = try await router.sendBinary(
-        Self.data,
-        originalMessage: Self.message,
-        useApplicationContext: true
-      )
+      _ = try await router.sendBinary(Self.binaryMessage, options: .useApplicationContext)
 
       #expect(session.applicationContexts.count == 1)
       #expect(session.transferredFiles.isEmpty)
@@ -158,7 +166,7 @@ extension MessageRouter {
       let router = MessageRouter(session: session)
 
       await #expect(throws: ConnectivityError.companionAppNotInstalled) {
-        _ = try await router.sendBinary(Self.data, originalMessage: Self.message)
+        _ = try await router.sendBinary(Self.binaryMessage)
       }
     }
   }

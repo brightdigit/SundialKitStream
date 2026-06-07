@@ -75,6 +75,18 @@ extension MessageDistributor {
       func encode() throws -> Data { Data(value.utf8) }
     }
 
+    /// Binary message relying on the *synthesized* `parameters()`/`init(from:)`,
+    /// so its `message()` embeds the encoded payload under `__data` — the path a
+    /// real `BinaryMessagable` takes when sent via `updateApplicationContext`.
+    private struct SynthBinaryMessage: BinaryMessagable {
+      static let key: String = "synthbinary"
+      let value: String
+
+      init(value: String) { self.value = value }
+      init(from data: Data) throws { self.value = String(bytes: data, encoding: .utf8) ?? "" }
+      func encode() throws -> Data { Data(value.utf8) }
+    }
+
     private func captureFirstTypedMessage(
       from manager: SundialKitStream.StreamContinuationManager,
       capture: TestValueCapture,
@@ -125,6 +137,26 @@ extension MessageDistributor {
 
       let received = await capture.typedMessage
       #expect((received as? BinaryMessage)?.value == "world")
+    }
+
+    @Test("Binary sent via application context round-trips through decode")
+    internal func binaryViaApplicationContextYieldsTyped() async throws {
+      // Mirrors the `.useApplicationContext` binary send path: the encoded binary
+      // rides inside message() under __parameters.__data and decodes via decode().
+      let manager = SundialKitStream.StreamContinuationManager()
+      let decoder = MessageDecoder(messagableTypes: [SynthBinaryMessage.self])
+      let distributor = MessageDistributor(continuationManager: manager, messageDecoder: decoder)
+      let capture = TestValueCapture()
+
+      try await captureFirstTypedMessage(from: manager, capture: capture) {
+        await distributor.handleApplicationContext(
+          SynthBinaryMessage(value: "ac").message(),
+          error: nil
+        )
+      }
+
+      let received = await capture.typedMessage
+      #expect((received as? SynthBinaryMessage)?.value == "ac")
     }
   }
 }

@@ -64,18 +64,17 @@ internal struct MessageRouter {
   ///
   /// When the counterpart is unreachable but the companion app is installed,
   /// the message is queued via `transferUserInfo` by default (FIFO, every
-  /// message delivered). Pass `useApplicationContext` to coalesce to the
-  /// latest-state `updateApplicationContext` transport instead.
+  /// message delivered). Pass `.useApplicationContext` in `options` to coalesce
+  /// to the latest-state `updateApplicationContext` transport instead.
   ///
   /// - Parameters:
   ///   - message: The message to send
-  ///   - useApplicationContext: Route unreachable sends through
-  ///     `updateApplicationContext` instead of the default queued transport
+  ///   - options: Send options; only `.useApplicationContext` affects routing here
   /// - Returns: The send result
   /// - Throws: Error if the message cannot be sent
   internal func send(
     _ message: ConnectivityMessage,
-    useApplicationContext: Bool = false
+    options: SendOptions = []
   ) async throws -> ConnectivitySendResult {
     if session.isReachable {
       // Use sendMessage for immediate delivery when reachable
@@ -86,7 +85,7 @@ internal struct MessageRouter {
         }
       }
     } else if session.isPairedAppInstalled {
-      if useApplicationContext {
+      if options.contains(.useApplicationContext) {
         // Coalescing latest-state delivery (explicit opt-in)
         try session.updateApplicationContext(message)
       } else {
@@ -128,26 +127,31 @@ internal struct MessageRouter {
 
   /// Routes a binary message using the best available transport.
   ///
-  /// When reachable, the encoded data is delivered immediately via
-  /// `sendMessageData`. When unreachable but the companion app is installed,
-  /// the data is queued via `transferFile` by default (FIFO, footer-included
-  /// `Data` written to a temp file by the session). Pass `useApplicationContext`
-  /// to coalesce the message to `updateApplicationContext` instead (binary rides
-  /// as `Data`-in-dictionary).
+  /// The typed message yields two representations, both derived here:
+  /// - `BinaryMessageEncoder.encode(message)` — footer-included `Data` for the
+  ///   raw transports (`sendMessageData` when reachable, `transferFile` when queued).
+  /// - `message.message()` — the dictionary envelope (`__type` + `__parameters`,
+  ///   with the encoded payload already embedded under `__data` by
+  ///   `BinaryMessagable`'s synthesized `parameters()`). Used as the send-result
+  ///   payload and as the `updateApplicationContext` payload.
+  ///
+  /// Because the binary already rides inside that dictionary, the
+  /// `.useApplicationContext` path round-trips through `MessageDecoder.decode`
+  /// on receive — the footer-based `decodeBinary` is only needed for the raw
+  /// `Data` transports, which have no dictionary envelope.
   ///
   /// - Parameters:
-  ///   - data: The encoded binary message data (type footer included)
-  ///   - originalMessage: The original message dictionary for result tracking
-  ///     and `updateApplicationContext` delivery
-  ///   - useApplicationContext: Route unreachable sends through
-  ///     `updateApplicationContext` instead of the default queued transport
+  ///   - message: The typed binary message to send
+  ///   - options: Send options; only `.useApplicationContext` affects routing here
   /// - Returns: The send result
-  /// - Throws: Error if the message cannot be sent
+  /// - Throws: Error if encoding fails or the message cannot be sent
   internal func sendBinary(
-    _ data: Data,
-    originalMessage: ConnectivityMessage,
-    useApplicationContext: Bool = false
+    _ message: some BinaryMessagable,
+    options: SendOptions = []
   ) async throws -> ConnectivitySendResult {
+    let data = try BinaryMessageEncoder.encode(message)
+    let messageDictionary = message.message()
+
     if session.isReachable {
       return try await withCheckedThrowingContinuation { continuation in
         session.sendMessageData(data) { result in
@@ -155,7 +159,7 @@ internal struct MessageRouter {
           case .success:
             // Note: Binary messages don't have reply data in current WatchConnectivity API
             let sendResult = ConnectivitySendResult(
-              message: originalMessage,
+              message: messageDictionary,
               context: .reply([:], transport: .binary)
             )
             continuation.resume(returning: sendResult)
@@ -165,15 +169,16 @@ internal struct MessageRouter {
         }
       }
     } else if session.isPairedAppInstalled {
-      if useApplicationContext {
-        // Coalescing latest-state delivery; binary rides as Data-in-dictionary
-        try session.updateApplicationContext(originalMessage)
+      if options.contains(.useApplicationContext) {
+        // Coalescing latest-state delivery; the encoded binary already rides
+        // inside messageDictionary under __parameters.__data
+        try session.updateApplicationContext(messageDictionary)
       } else {
         // Default: queued FIFO delivery via transferFile (footer included)
         session.transferFile(data, metadata: nil)
       }
       return ConnectivitySendResult(
-        message: originalMessage,
+        message: messageDictionary,
         context: .applicationContext(transport: .binary)
       )
     } else {

@@ -85,7 +85,8 @@ extension MessageHandling {
   /// Handles a received queued file's contents (`transferFile` partner)
   /// - Parameters:
   ///   - data: The received binary data (type footer included)
-  ///   - metadata: Optional metadata that accompanied the transfer
+  ///   - metadata: Optional sidecar dictionary; **not** used for decoding (the
+  ///     footer in `data` carries the type identity). Forwarded but currently ignored.
   internal func handleFile(_ data: Data, metadata: ConnectivityMessage?) async {
     await messageDistributor.handleFile(data, metadata: metadata)
   }

@@ -40,22 +40,19 @@ extension ConnectivityObserver {
   /// - Returns: The send result
   /// - Throws: Error if the message cannot be sent
   public func sendMessage(_ message: ConnectivityMessage) async throws -> ConnectivitySendResult {
-    try await sendMessage(message, useApplicationContext: false)
+    try await sendMessage(message, options: [])
   }
 
   /// Sends a dictionary message, optionally coalescing unreachable delivery.
   ///
   /// When unreachable, the message is queued via `transferUserInfo` by default;
-  /// pass `useApplicationContext` to use the latest-state `updateApplicationContext`.
+  /// pass `.useApplicationContext` to use the latest-state `updateApplicationContext`.
   internal func sendMessage(
     _ message: ConnectivityMessage,
-    useApplicationContext: Bool
+    options: SendOptions
   ) async throws -> ConnectivitySendResult {
     do {
-      let sendResult = try await messageRouter.send(
-        message,
-        useApplicationContext: useApplicationContext
-      )
+      let sendResult = try await messageRouter.send(message, options: options)
 
       // Notify send result stream subscribers
       await messageDistributor.notifySendResult(sendResult)
@@ -101,20 +98,13 @@ extension ConnectivityObserver {
     -> ConnectivitySendResult
   {
     // Determine transport based on type and options
-    let useApplicationContext = options.contains(.useApplicationContext)
     if let binaryMessage = message as? any BinaryMessagable,
       !options.contains(.forceDictionary)
     {
-      // Binary transport
-      let data = try BinaryMessageEncoder.encode(binaryMessage)
-      let originalMessage = message.message()
-
+      // Binary transport — the router derives both the encoded Data and the
+      // dictionary envelope from the typed message
       do {
-        let sendResult = try await messageRouter.sendBinary(
-          data,
-          originalMessage: originalMessage,
-          useApplicationContext: useApplicationContext
-        )
+        let sendResult = try await messageRouter.sendBinary(binaryMessage, options: options)
 
         // Notify send result stream subscribers
         await messageDistributor.notifySendResult(sendResult)
@@ -122,7 +112,7 @@ extension ConnectivityObserver {
         return sendResult
       } catch {
         let sendResult = ConnectivitySendResult(
-          message: originalMessage,
+          message: message.message(),
           context: .failure(error)
         )
 
@@ -133,10 +123,7 @@ extension ConnectivityObserver {
       }
     } else {
       // Dictionary transport
-      return try await sendMessage(
-        message.message(),
-        useApplicationContext: useApplicationContext
-      )
+      return try await sendMessage(message.message(), options: options)
     }
   }
 }

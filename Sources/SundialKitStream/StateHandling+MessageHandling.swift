@@ -134,7 +134,9 @@ extension StateHandling where Self: MessageHandling & Sendable {
   /// Handles a received queued file's contents (`transferFile` partner).
   ///
   /// The `Data` was read synchronously upstream, so routing it asynchronously
-  /// into the typed-message stream is safe.
+  /// into the typed-message stream is safe. `metadata` is an optional sidecar and
+  /// is **not** used for decoding — the type footer embedded in `fileData` carries
+  /// the type identity — so it is forwarded but currently ignored.
   nonisolated public func session(
     _: any ConnectivitySession,
     didReceiveFile fileData: Data,
