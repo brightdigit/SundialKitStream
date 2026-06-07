@@ -75,4 +75,18 @@ extension MessageHandling {
   {
     await messageDistributor.handleBinaryMessage(data, replyHandler: replyHandler)
   }
+
+  /// Handles a received queued dictionary (`transferUserInfo` partner)
+  /// - Parameter userInfo: The received user info dictionary
+  internal func handleUserInfo(_ userInfo: ConnectivityMessage) async {
+    await messageDistributor.handleUserInfo(userInfo)
+  }
+
+  /// Handles a received queued file's contents (`transferFile` partner)
+  /// - Parameters:
+  ///   - data: The received binary data (type footer included)
+  ///   - metadata: Optional metadata that accompanied the transfer
+  internal func handleFile(_ data: Data, metadata: ConnectivityMessage?) async {
+    await messageDistributor.handleFile(data, metadata: metadata)
+  }
 }

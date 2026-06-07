@@ -133,6 +133,45 @@ public actor MessageDistributor {
     }
   }
 
+  internal func handleUserInfo(_ userInfo: ConnectivityMessage) async {
+    // Send to raw stream subscribers
+    let result = ConnectivityReceiveResult(
+      message: userInfo,
+      context: .applicationContext
+    )
+    await continuationManager.yieldMessageReceived(result)
+
+    // Decode and send to typed stream subscribers
+    if let decoder = messageDecoder {
+      do {
+        let decoded = try decoder.decode(userInfo)
+        await continuationManager.yieldTypedMessage(decoded)
+      } catch {
+        // Decoding failed - crash in debug, log in production
+        assertionFailure("Failed to decode user info: \(error)")
+        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+          SundialLogger.stream.error("Failed to decode user info: \(String(describing: error))")
+        }
+      }
+    }
+  }
+
+  internal func handleFile(_ data: Data, metadata _: ConnectivityMessage?) async {
+    // Decode and send to typed stream subscribers
+    if let decoder = messageDecoder {
+      do {
+        let decoded = try decoder.decodeBinary(data)
+        await continuationManager.yieldTypedMessage(decoded)
+      } catch {
+        // Decoding failed - crash in debug, log in production
+        assertionFailure("Failed to decode file: \(error)")
+        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+          SundialLogger.stream.error("Failed to decode file: \(String(describing: error))")
+        }
+      }
+    }
+  }
+
   internal func notifySendResult(_ result: ConnectivitySendResult) async {
     await continuationManager.yieldSendResult(result)
   }

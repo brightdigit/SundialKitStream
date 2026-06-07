@@ -40,8 +40,22 @@ extension ConnectivityObserver {
   /// - Returns: The send result
   /// - Throws: Error if the message cannot be sent
   public func sendMessage(_ message: ConnectivityMessage) async throws -> ConnectivitySendResult {
+    try await sendMessage(message, useApplicationContext: false)
+  }
+
+  /// Sends a dictionary message, optionally coalescing unreachable delivery.
+  ///
+  /// When unreachable, the message is queued via `transferUserInfo` by default;
+  /// pass `useApplicationContext` to use the latest-state `updateApplicationContext`.
+  internal func sendMessage(
+    _ message: ConnectivityMessage,
+    useApplicationContext: Bool
+  ) async throws -> ConnectivitySendResult {
     do {
-      let sendResult = try await messageRouter.send(message)
+      let sendResult = try await messageRouter.send(
+        message,
+        useApplicationContext: useApplicationContext
+      )
 
       // Notify send result stream subscribers
       await messageDistributor.notifySendResult(sendResult)
@@ -87,6 +101,7 @@ extension ConnectivityObserver {
     -> ConnectivitySendResult
   {
     // Determine transport based on type and options
+    let useApplicationContext = options.contains(.useApplicationContext)
     if let binaryMessage = message as? any BinaryMessagable,
       !options.contains(.forceDictionary)
     {
@@ -95,7 +110,11 @@ extension ConnectivityObserver {
       let originalMessage = message.message()
 
       do {
-        let sendResult = try await messageRouter.sendBinary(data, originalMessage: originalMessage)
+        let sendResult = try await messageRouter.sendBinary(
+          data,
+          originalMessage: originalMessage,
+          useApplicationContext: useApplicationContext
+        )
 
         // Notify send result stream subscribers
         await messageDistributor.notifySendResult(sendResult)
@@ -114,7 +133,10 @@ extension ConnectivityObserver {
       }
     } else {
       // Dictionary transport
-      return try await sendMessage(message.message())
+      return try await sendMessage(
+        message.message(),
+        useApplicationContext: useApplicationContext
+      )
     }
   }
 }

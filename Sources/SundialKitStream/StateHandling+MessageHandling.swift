@@ -120,20 +120,28 @@ extension StateHandling where Self: MessageHandling & Sendable {
 
   /// Handles a received queued dictionary (`transferUserInfo` partner).
   ///
-  /// Routing queued transfers into the message stream lands in the Phase 2
-  /// stream-routing work (brightdigit/SundialKitStream#12).
+  /// Routes the queued dictionary into the message and typed-message streams,
+  /// mirroring `didReceiveApplicationContext`.
   nonisolated public func session(
     _: any ConnectivitySession,
-    didReceiveUserInfo _: ConnectivityMessage
-  ) {}
+    didReceiveUserInfo userInfo: ConnectivityMessage
+  ) {
+    Task {
+      await handleUserInfo(userInfo)
+    }
+  }
 
   /// Handles a received queued file's contents (`transferFile` partner).
   ///
-  /// Routing queued transfers into the message stream lands in the Phase 2
-  /// stream-routing work (brightdigit/SundialKitStream#12).
+  /// The `Data` was read synchronously upstream, so routing it asynchronously
+  /// into the typed-message stream is safe.
   nonisolated public func session(
     _: any ConnectivitySession,
-    didReceiveFile _: Data,
-    metadata _: ConnectivityMessage?
-  ) {}
+    didReceiveFile fileData: Data,
+    metadata: ConnectivityMessage?
+  ) {
+    Task {
+      await handleFile(fileData, metadata: metadata)
+    }
+  }
 }

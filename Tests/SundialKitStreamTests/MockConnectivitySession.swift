@@ -45,21 +45,42 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
   internal var outstandingUserInfoTransferCount = 0
   internal var outstandingFileTransferCount = 0
 
+  // MARK: - Recorded Calls
+
+  internal private(set) var sentMessages: [ConnectivityMessage] = []
+  internal private(set) var sentMessageData: [Data] = []
+  internal private(set) var applicationContexts: [ConnectivityMessage] = []
+  internal private(set) var transferredUserInfo: [ConnectivityMessage] = []
+  internal private(set) var transferredFiles: [(data: Data, metadata: ConnectivityMessage?)] = []
+
   internal func activate() throws {}
 
-  internal func updateApplicationContext(_ context: ConnectivityMessage) throws {}
+  internal func updateApplicationContext(_ context: ConnectivityMessage) throws {
+    applicationContexts.append(context)
+  }
 
   internal func sendMessage(
     _ message: ConnectivityMessage,
     _ replyHandler: @escaping (Result<ConnectivityMessage, any Error>) -> Void
-  ) {}
+  ) {
+    sentMessages.append(message)
+    // Resume the router's continuation so reachable sends complete
+    replyHandler(.success(message))
+  }
 
   internal func sendMessageData(
     _ data: Data,
     _ completion: @escaping (Result<Data, any Error>) -> Void
-  ) {}
+  ) {
+    sentMessageData.append(data)
+    completion(.success(data))
+  }
 
-  internal func transferUserInfo(_ userInfo: ConnectivityMessage) {}
+  internal func transferUserInfo(_ userInfo: ConnectivityMessage) {
+    transferredUserInfo.append(userInfo)
+  }
 
-  internal func transferFile(_ fileData: Data, metadata: ConnectivityMessage?) {}
+  internal func transferFile(_ fileData: Data, metadata: ConnectivityMessage?) {
+    transferredFiles.append((data: fileData, metadata: metadata))
+  }
 }

@@ -62,10 +62,21 @@ internal struct MessageRouter {
 
   /// Routes a dictionary message using the best available transport.
   ///
-  /// - Parameter message: The message to send
+  /// When the counterpart is unreachable but the companion app is installed,
+  /// the message is queued via `transferUserInfo` by default (FIFO, every
+  /// message delivered). Pass `useApplicationContext` to coalesce to the
+  /// latest-state `updateApplicationContext` transport instead.
+  ///
+  /// - Parameters:
+  ///   - message: The message to send
+  ///   - useApplicationContext: Route unreachable sends through
+  ///     `updateApplicationContext` instead of the default queued transport
   /// - Returns: The send result
   /// - Throws: Error if the message cannot be sent
-  internal func send(_ message: ConnectivityMessage) async throws -> ConnectivitySendResult {
+  internal func send(
+    _ message: ConnectivityMessage,
+    useApplicationContext: Bool = false
+  ) async throws -> ConnectivitySendResult {
     if session.isReachable {
       // Use sendMessage for immediate delivery when reachable
       return try await withCheckedThrowingContinuation { continuation in
@@ -75,79 +86,99 @@ internal struct MessageRouter {
         }
       }
     } else if session.isPairedAppInstalled {
-      // Use application context for background delivery
-      do {
+      if useApplicationContext {
+        // Coalescing latest-state delivery (explicit opt-in)
         try session.updateApplicationContext(message)
-        return ConnectivitySendResult(
-          message: message,
-          context: .applicationContext(transport: .dictionary)
-        )
-      } catch {
-        throw error
+      } else {
+        // Default: queued FIFO delivery via transferUserInfo
+        session.transferUserInfo(message)
       }
+      return ConnectivitySendResult(
+        message: message,
+        context: .applicationContext(transport: .dictionary)
+      )
     } else {
       // No way to deliver the message - determine specific reason
-      // Check if devices are paired at all
-      if !session.isPaired {
-        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-          SundialLogger.stream.error(
-            "MessageRouter: Cannot send - devices not paired (isPaired=\(session.isPaired))"
-          )
-        }
-        throw ConnectivityError.deviceNotPaired
-      } else {
-        // Devices are paired but app not installed
-        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-          SundialLogger.stream.error(
-            // swiftlint:disable:next line_length
-            "MessageRouter: Cannot send - companion app not installed (isPaired=\(session.isPaired), isPairedAppInstalled=\(session.isPairedAppInstalled))"
-          )
-        }
-        throw ConnectivityError.companionAppNotInstalled
-      }
+      throw undeliverableError()
     }
+  }
+
+  /// Returns the specific error describing why a message cannot be delivered
+  /// when the counterpart is neither reachable nor (paired and installed).
+  private func undeliverableError() -> ConnectivityError {
+    if !session.isPaired {
+      if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+        SundialLogger.stream.error(
+          "MessageRouter: Cannot send - devices not paired (isPaired=\(session.isPaired))"
+        )
+      }
+      return .deviceNotPaired
+    }
+    // Devices are paired but app not installed
+    if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+      SundialLogger.stream.error(
+        // swiftlint:disable:next line_length
+        "MessageRouter: Cannot send - companion app not installed (isPaired=\(session.isPaired), isPairedAppInstalled=\(session.isPairedAppInstalled))"
+      )
+    }
+    return .companionAppNotInstalled
   }
 
   // MARK: - Binary Message Routing
 
-  /// Routes a binary message using sendMessageData.
+  /// Routes a binary message using the best available transport.
   ///
-  /// Binary messages require reachability and cannot use application context.
+  /// When reachable, the encoded data is delivered immediately via
+  /// `sendMessageData`. When unreachable but the companion app is installed,
+  /// the data is queued via `transferFile` by default (FIFO, footer-included
+  /// `Data` written to a temp file by the session). Pass `useApplicationContext`
+  /// to coalesce the message to `updateApplicationContext` instead (binary rides
+  /// as `Data`-in-dictionary).
   ///
   /// - Parameters:
-  ///   - data: The encoded binary message data
+  ///   - data: The encoded binary message data (type footer included)
   ///   - originalMessage: The original message dictionary for result tracking
+  ///     and `updateApplicationContext` delivery
+  ///   - useApplicationContext: Route unreachable sends through
+  ///     `updateApplicationContext` instead of the default queued transport
   /// - Returns: The send result
-  /// - Throws: Error if the message cannot be sent or counterpart is not reachable
+  /// - Throws: Error if the message cannot be sent
   internal func sendBinary(
     _ data: Data,
-    originalMessage: ConnectivityMessage
+    originalMessage: ConnectivityMessage,
+    useApplicationContext: Bool = false
   ) async throws -> ConnectivitySendResult {
-    guard session.isReachable else {
-      // Binary messages require reachability - can't use application context
-      if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-        SundialLogger.stream.error(
-          // swiftlint:disable:next line_length
-          "MessageRouter: Cannot send binary - not reachable (isReachable=\(session.isReachable), isPaired=\(session.isPaired), isPairedAppInstalled=\(session.isPairedAppInstalled))"
-        )
-      }
-      throw ConnectivityError.notReachable
-    }
-
-    return try await withCheckedThrowingContinuation { continuation in
-      session.sendMessageData(data) { result in
-        switch result {
-        case .success:
-          // Note: Binary messages don't have reply data in current WatchConnectivity API
-          let sendResult = ConnectivitySendResult(
-            message: originalMessage,
-            context: .reply([:], transport: .binary)
-          )
-          continuation.resume(returning: sendResult)
-        case .failure(let error):
-          continuation.resume(throwing: error)
+    if session.isReachable {
+      return try await withCheckedThrowingContinuation { continuation in
+        session.sendMessageData(data) { result in
+          switch result {
+          case .success:
+            // Note: Binary messages don't have reply data in current WatchConnectivity API
+            let sendResult = ConnectivitySendResult(
+              message: originalMessage,
+              context: .reply([:], transport: .binary)
+            )
+            continuation.resume(returning: sendResult)
+          case .failure(let error):
+            continuation.resume(throwing: error)
+          }
         }
       }
+    } else if session.isPairedAppInstalled {
+      if useApplicationContext {
+        // Coalescing latest-state delivery; binary rides as Data-in-dictionary
+        try session.updateApplicationContext(originalMessage)
+      } else {
+        // Default: queued FIFO delivery via transferFile (footer included)
+        session.transferFile(data, metadata: nil)
+      }
+      return ConnectivitySendResult(
+        message: originalMessage,
+        context: .applicationContext(transport: .binary)
+      )
+    } else {
+      // No way to deliver the message - determine specific reason
+      throw undeliverableError()
     }
   }
 }
