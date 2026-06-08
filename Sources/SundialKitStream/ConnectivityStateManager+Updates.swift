@@ -129,11 +129,15 @@ extension ConnectivityStateManager {
   }
 
   internal func updateReachability(_ isReachable: Bool) async {
-    // Verify session has been activated before updating reachability
-    assert(
-      state.activationState != nil,
-      "Cannot update reachability before session activation"
-    )
+    // A reachability change can arrive before activation completes: the
+    // `sessionReachabilityDidChange` and `activationDidCompleteWith` delegate
+    // callbacks each run in their own Task and can execute out of order on this
+    // actor. Drop the early update rather than trapping — `handleActivation`
+    // re-establishes reachability from the live session and yields it once
+    // activation completes, so no state is lost.
+    guard state.activationState != nil else {
+      return
+    }
 
     #if os(iOS)
       state = ConnectivityState(
