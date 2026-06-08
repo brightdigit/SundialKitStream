@@ -77,8 +77,8 @@ extension MessageRouter {
       #expect(session.transferredUserInfo.count == 1)
       #expect(session.sentMessages.isEmpty)
       #expect(session.applicationContexts.isEmpty)
-      guard case .applicationContext(let transport) = result.context else {
-        Issue.record("Expected applicationContext send context")
+      guard case .queued(let transport) = result.context else {
+        Issue.record("Expected queued send context")
         return
       }
       #expect(transport == .dictionary)
@@ -138,8 +138,8 @@ extension MessageRouter {
         session.transferredFiles.first?.data
           == (try BinaryMessageEncoder.encode(Self.binaryMessage)))
       #expect(session.sentMessageData.isEmpty)
-      guard case .applicationContext(let transport) = result.context else {
-        Issue.record("Expected applicationContext send context")
+      guard case .queued(let transport) = result.context else {
+        Issue.record("Expected queued send context")
         return
       }
       #expect(transport == .binary)

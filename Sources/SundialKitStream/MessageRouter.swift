@@ -85,17 +85,17 @@ internal struct MessageRouter {
         }
       }
     } else if session.isPairedAppInstalled {
+      let context: ConnectivitySendContext
       if options.contains(.useApplicationContext) {
         // Coalescing latest-state delivery (explicit opt-in)
         try session.updateApplicationContext(message)
+        context = .applicationContext(transport: .dictionary)
       } else {
         // Default: queued FIFO delivery via transferUserInfo
         session.transferUserInfo(message)
+        context = .queued(transport: .dictionary)
       }
-      return ConnectivitySendResult(
-        message: message,
-        context: .applicationContext(transport: .dictionary)
-      )
+      return ConnectivitySendResult(message: message, context: context)
     } else {
       // No way to deliver the message - determine specific reason
       throw undeliverableError()
@@ -169,18 +169,18 @@ internal struct MessageRouter {
         }
       }
     } else if session.isPairedAppInstalled {
+      let context: ConnectivitySendContext
       if options.contains(.useApplicationContext) {
         // Coalescing latest-state delivery; the encoded binary already rides
         // inside messageDictionary under __parameters.__data
         try session.updateApplicationContext(messageDictionary)
+        context = .applicationContext(transport: .binary)
       } else {
         // Default: queued FIFO delivery via transferFile (footer included)
         session.transferFile(data, metadata: nil)
+        context = .queued(transport: .binary)
       }
-      return ConnectivitySendResult(
-        message: messageDictionary,
-        context: .applicationContext(transport: .binary)
-      )
+      return ConnectivitySendResult(message: messageDictionary, context: context)
     } else {
       // No way to deliver the message - determine specific reason
       throw undeliverableError()
