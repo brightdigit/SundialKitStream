@@ -69,6 +69,12 @@ internal struct MessageRouter {
     if session.isPairedAppInstalled {
       // Always deliver via application context, regardless of reachability.
       //
+      // `session.isReachable` is intentionally not consulted on this dictionary
+      // path (the binary `sendBinary` path still gates on it). The combination
+      // `isPairedAppInstalled == true` with `isPaired == false` — which some
+      // simulator states report — also falls through here on purpose: routing via
+      // application context is harmless and correct in that case.
+      //
       // This app's messages are latest-desired-state (start config, stop,
       // request, state update), for which application context is the correct
       // transport in every reachability state: WatchConnectivity delivers it

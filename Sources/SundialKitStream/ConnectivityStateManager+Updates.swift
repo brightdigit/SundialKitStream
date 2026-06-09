@@ -31,6 +31,10 @@ public import Foundation
 public import SundialKitConnectivity
 public import SundialKitCore
 
+#if canImport(os.log)
+  import os.log
+#endif
+
 @available(macOS 10.15, iOS 13, watchOS 6, tvOS 13, *)
 extension ConnectivityStateManager {
   // MARK: - State Updates
@@ -136,6 +140,12 @@ extension ConnectivityStateManager {
     // re-establishes reachability from the live session and yields it once
     // activation completes, so no state is lost.
     guard state.activationState != nil else {
+      if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+        SundialLogger.stream.debug(
+          // swiftlint:disable:next line_length
+          "ConnectivityStateManager: dropping reachability update (\(isReachable)) received before activation completed"
+        )
+      }
       return
     }
 

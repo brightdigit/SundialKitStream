@@ -1,5 +1,5 @@
 //
-//  MessageRouter.RoutingTests.swift
+//  MessageRouterRoutingTests.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
@@ -60,10 +60,15 @@ internal struct MessageRouterRoutingTests {
     #expect(session.applicationContexts.count == 1)
     #expect(session.applicationContexts.first?["__type"] as? String == "StartTimerCommand")
     #expect(result.context.transport == .dictionary)
+    // The reachable path must resolve to .applicationContext, never the fragile
+    // reply-expecting sendMessage route.
+    let usedApplicationContext: Bool
     if case .applicationContext = result.context {
+      usedApplicationContext = true
     } else {
-      Issue.record("Expected .applicationContext, got \(result.context)")
+      usedApplicationContext = false
     }
+    #expect(usedApplicationContext)
   }
 
   @Test("Dictionary send uses application context when unreachable")

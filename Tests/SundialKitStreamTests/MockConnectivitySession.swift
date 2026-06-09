@@ -72,7 +72,9 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
     _ replyHandler: @escaping (Result<ConnectivityMessage, any Error>) -> Void
   ) {
     sentMessages.append(message)
+    // Consume the queued reply so a second send does not silently re-fire it.
     if let nextSendMessageReply {
+      self.nextSendMessageReply = nil
       replyHandler(nextSendMessageReply)
     }
   }
@@ -82,7 +84,9 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
     _ completion: @escaping (Result<Data, any Error>) -> Void
   ) {
     sentMessageData.append(data)
+    // Consume the queued reply so a second send does not silently re-fire it.
     if let nextSendMessageDataReply {
+      self.nextSendMessageDataReply = nil
       completion(nextSendMessageDataReply)
     }
   }
