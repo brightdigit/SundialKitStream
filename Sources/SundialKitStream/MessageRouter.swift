@@ -80,15 +80,11 @@ internal struct MessageRouter {
       // handler more than once for the same message (WCErrorCodeNotReachable
       // then WCErrorCodeMessageReplyTimedOut), which both loses the command and
       // crashes the checked continuation with a double resume.
-      do {
-        try session.updateApplicationContext(message)
-        return ConnectivitySendResult(
-          message: message,
-          context: .applicationContext(transport: .dictionary)
-        )
-      } catch {
-        throw error
-      }
+      try session.updateApplicationContext(message)
+      return ConnectivitySendResult(
+        message: message,
+        context: .applicationContext(transport: .dictionary)
+      )
     } else {
       // No way to deliver the message - determine specific reason
       // Check if devices are paired at all
