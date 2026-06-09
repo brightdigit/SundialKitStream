@@ -83,6 +83,22 @@ extension ConnectivityStateManager.State {
       #endif
     }
 
+    @Test("Update reachability before activation is dropped, not a crash")
+    internal func updateReachabilityBeforeActivationIsDropped() async {
+      let continuationManager = SundialKitStream.StreamContinuationManager()
+      let stateManager = SundialKitStream.ConnectivityStateManager(
+        continuationManager: continuationManager
+      )
+
+      // No handleActivation: a reachability callback can arrive first when the
+      // delegate Tasks run out of order. It must early-return rather than trap.
+      await stateManager.updateReachability(true)
+
+      let state = await stateManager.currentState
+      #expect(state.activationState == nil)
+      #expect(state.isReachable == false)
+    }
+
     // MARK: - Companion State Update Tests
 
     @Test("Update companion state changes both values on iOS")
