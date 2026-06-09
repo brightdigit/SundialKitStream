@@ -66,16 +66,20 @@ internal struct MessageRouter {
   /// - Returns: The send result
   /// - Throws: Error if the message cannot be sent
   internal func send(_ message: ConnectivityMessage) async throws -> ConnectivitySendResult {
-    if session.isReachable {
-      // Use sendMessage for immediate delivery when reachable
-      return try await withCheckedThrowingContinuation { continuation in
-        session.sendMessage(message) { result in
-          let sendResult = ConnectivitySendResult(message: message, context: .init(result))
-          continuation.resume(returning: sendResult)
-        }
-      }
-    } else if session.isPairedAppInstalled {
-      // Use application context for background delivery
+    if session.isPairedAppInstalled {
+      // Always deliver via application context, regardless of reachability.
+      //
+      // This app's messages are latest-desired-state (start config, stop,
+      // request, state update), for which application context is the correct
+      // transport in every reachability state: WatchConnectivity delivers it
+      // immediately when the counterpart is active and persists + replays it on
+      // activation/reachability change otherwise.
+      //
+      // `sendMessage` is deliberately NOT used. It requires a stable reachable
+      // link and a reply, and a flapping link makes WCSession invoke the error
+      // handler more than once for the same message (WCErrorCodeNotReachable
+      // then WCErrorCodeMessageReplyTimedOut), which both loses the command and
+      // crashes the checked continuation with a double resume.
       do {
         try session.updateApplicationContext(message)
         return ConnectivitySendResult(
