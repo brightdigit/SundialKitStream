@@ -66,25 +66,31 @@ internal struct MessageRouter {
   /// - Returns: The send result
   /// - Throws: Error if the message cannot be sent
   internal func send(_ message: ConnectivityMessage) async throws -> ConnectivitySendResult {
-    if session.isReachable {
-      // Use sendMessage for immediate delivery when reachable
-      return try await withCheckedThrowingContinuation { continuation in
-        session.sendMessage(message) { result in
-          let sendResult = ConnectivitySendResult(message: message, context: .init(result))
-          continuation.resume(returning: sendResult)
-        }
-      }
-    } else if session.isPairedAppInstalled {
-      // Use application context for background delivery
-      do {
-        try session.updateApplicationContext(message)
-        return ConnectivitySendResult(
-          message: message,
-          context: .applicationContext(transport: .dictionary)
-        )
-      } catch {
-        throw error
-      }
+    if session.isPairedAppInstalled {
+      // Always deliver via application context, regardless of reachability.
+      //
+      // `session.isReachable` is intentionally not consulted on this dictionary
+      // path (the binary `sendBinary` path still gates on it). The combination
+      // `isPairedAppInstalled == true` with `isPaired == false` — which some
+      // simulator states report — also falls through here on purpose: routing via
+      // application context is harmless and correct in that case.
+      //
+      // This app's messages are latest-desired-state (start config, stop,
+      // request, state update), for which application context is the correct
+      // transport in every reachability state: WatchConnectivity delivers it
+      // immediately when the counterpart is active and persists + replays it on
+      // activation/reachability change otherwise.
+      //
+      // `sendMessage` is deliberately NOT used. It requires a stable reachable
+      // link and a reply, and a flapping link makes WCSession invoke the error
+      // handler more than once for the same message (WCErrorCodeNotReachable
+      // then WCErrorCodeMessageReplyTimedOut), which both loses the command and
+      // crashes the checked continuation with a double resume.
+      try session.updateApplicationContext(message)
+      return ConnectivitySendResult(
+        message: message,
+        context: .applicationContext(transport: .dictionary)
+      )
     } else {
       // No way to deliver the message - determine specific reason
       // Check if devices are paired at all

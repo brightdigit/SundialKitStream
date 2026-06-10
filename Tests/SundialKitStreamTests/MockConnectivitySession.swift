@@ -43,17 +43,51 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
   internal var activationState: ActivationState = .notActivated
   internal var receivedApplicationContext: ConnectivityMessage?
 
+  // MARK: - Transport call recording
+
+  /// Every dictionary handed to `updateApplicationContext`, in order.
+  internal var applicationContexts: [ConnectivityMessage] = []
+  /// Every dictionary handed to `sendMessage`, in order.
+  internal var sentMessages: [ConnectivityMessage] = []
+  /// Every payload handed to `sendMessageData`, in order.
+  internal var sentMessageData: [Data] = []
+  /// When set, `updateApplicationContext` throws this instead of recording.
+  internal var updateApplicationContextError: (any Error)?
+  /// Reply delivered to `sendMessage`'s handler, if any.
+  internal var nextSendMessageReply: Result<ConnectivityMessage, any Error>?
+  /// Reply delivered to `sendMessageData`'s handler, if any.
+  internal var nextSendMessageDataReply: Result<Data, any Error>?
+
   internal func activate() throws {}
 
-  internal func updateApplicationContext(_ context: ConnectivityMessage) throws {}
+  internal func updateApplicationContext(_ context: ConnectivityMessage) throws {
+    if let updateApplicationContextError {
+      throw updateApplicationContextError
+    }
+    applicationContexts.append(context)
+  }
 
   internal func sendMessage(
     _ message: ConnectivityMessage,
     _ replyHandler: @escaping (Result<ConnectivityMessage, any Error>) -> Void
-  ) {}
+  ) {
+    sentMessages.append(message)
+    // Consume the queued reply so a second send does not silently re-fire it.
+    if let nextSendMessageReply {
+      self.nextSendMessageReply = nil
+      replyHandler(nextSendMessageReply)
+    }
+  }
 
   internal func sendMessageData(
     _ data: Data,
     _ completion: @escaping (Result<Data, any Error>) -> Void
-  ) {}
+  ) {
+    sentMessageData.append(data)
+    // Consume the queued reply so a second send does not silently re-fire it.
+    if let nextSendMessageDataReply {
+      self.nextSendMessageDataReply = nil
+      completion(nextSendMessageDataReply)
+    }
+  }
 }
