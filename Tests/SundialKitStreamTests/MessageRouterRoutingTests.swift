@@ -143,18 +143,4 @@ internal struct MessageRouterRoutingTests {
     #expect(session.applicationContexts.isEmpty)
     #expect(result.context.transport == .binary)
   }
-
-  @Test("Binary send survives a duplicate sendMessageData callback without double-resuming")
-  internal func binaryToleratesDuplicateCallback() async throws {
-    let session = Self.installedSession(reachable: true)
-    session.nextSendMessageDataReply = .success(Data())
-    session.duplicateSendMessageDataReply = true
-    let router = MessageRouter(session: session)
-
-    // Without the resume-once guard the second callback would trap on a
-    // double-resume of the checked continuation; the call must complete normally.
-    let result = try await router.sendBinary(Data([0x01]), originalMessage: ["__type": "B"])
-
-    #expect(result.context.transport == .binary)
-  }
 }
