@@ -77,9 +77,15 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
 
     // Simulate WCSession blocking inside the call. Held *outside* the lock so
     // overlapping callers are observable via `maxConcurrentContextUpdates`.
-    if let delay {
-      Thread.sleep(forTimeInterval: delay)
-    }
+    // `Thread` is unavailable on WASI (no Dispatch); that runtime is
+    // single-threaded, so there is no overlap to simulate and the delay is skipped.
+    #if canImport(Dispatch)
+      if let delay {
+        Thread.sleep(forTimeInterval: delay)
+      }
+    #else
+      _ = delay
+    #endif
 
     stateLock.lock()
     activeContextUpdates -= 1

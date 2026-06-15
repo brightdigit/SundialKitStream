@@ -99,7 +99,7 @@ public actor MessageDistributor {
     // cache: they reach raw subscribers and are never recorded as delivered.
     if error == nil {
       if let last = lastDeliveredApplicationContext,
-        NSDictionary(dictionary: applicationContext).isEqual(to: last)
+        Self.applicationContext(applicationContext, matches: last)
       {
         if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
           SundialLogger.streamDebug("Skipping replayed application context")
@@ -131,6 +131,29 @@ public actor MessageDistributor {
         }
       }
     }
+  }
+
+  /// Compares two application contexts for equality in a way that is stable
+  /// across platforms.
+  ///
+  /// `NSDictionary.isEqual(to:)` relies on Objective-C bridging of the
+  /// heterogeneous `[String: any Sendable]` values, which swift-corelibs
+  /// Foundation (Linux/Windows/Android/WASI) does not reproduce — identical
+  /// contexts compare unequal there, defeating replay suppression. Canonical
+  /// JSON (sorted keys) yields identical bytes for equal contexts on every
+  /// platform. A context holding non-JSON property-list values (e.g. `Date`,
+  /// `Data`) falls back to `NSDictionary`; in that case it is treated as
+  /// changed off Apple platforms and delivered, which is safe (replays only).
+  private static func applicationContext(
+    _ lhs: ConnectivityMessage,
+    matches rhs: ConnectivityMessage
+  ) -> Bool {
+    let options: JSONSerialization.WritingOptions = [.sortedKeys]
+    if let lhsData = try? JSONSerialization.data(withJSONObject: lhs, options: options),
+      let rhsData = try? JSONSerialization.data(withJSONObject: rhs, options: options) {
+      return lhsData == rhsData
+    }
+    return NSDictionary(dictionary: lhs).isEqual(to: rhs)
   }
 
   internal func handleBinaryMessage(
