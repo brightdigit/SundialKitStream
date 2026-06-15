@@ -31,6 +31,10 @@ import Foundation
 import SundialKitConnectivity
 import SundialKitCore
 
+#if canImport(Dispatch)
+  import Dispatch
+#endif
+
 #if canImport(os.log)
   import os.log
 #endif
@@ -49,6 +53,24 @@ internal struct MessageRouter {
 
   private let session: any ConnectivitySession
 
+  /// Serial queue for `updateApplicationContext` calls.
+  ///
+  /// The WCSession call is synchronous; invoking it from an async function
+  /// blocks a cooperative-pool thread, and two racing calls can block *both*
+  /// threads of a watch's 2-thread pool, starving every actor in the app.
+  /// Hopping onto this queue (a) guarantees two calls never run concurrently
+  /// and (b) keeps any blocking off the cooperative pool entirely.
+  ///
+  /// One router exists per `ConnectivityObserver`; struct copies share the
+  /// queue, preserving serialization.
+  ///
+  /// Platforms without Dispatch (e.g. WASI/Wasm) are single-threaded, so no
+  /// cross-thread serialization is possible or needed there; the queue is
+  /// elided and `updateApplicationContext` is invoked directly.
+  #if canImport(Dispatch)
+    private let applicationContextQueue: DispatchQueue
+  #endif
+
   // MARK: - Initialization
 
   /// Creates a new message router.
@@ -56,6 +78,38 @@ internal struct MessageRouter {
   /// - Parameter session: The connectivity session to use for sending
   internal init(session: any ConnectivitySession) {
     self.session = session
+    #if canImport(Dispatch)
+      self.applicationContextQueue = DispatchQueue(
+        label: "com.brightdigit.SundialKitStream.MessageRouter.applicationContext"
+      )
+    #endif
+  }
+
+  /// Runs `updateApplicationContext` on the dedicated serial queue.
+  ///
+  /// - Parameter message: The message to send as application context
+  /// - Throws: Error if the context update fails
+  internal func updateApplicationContextSerialized(
+    _ message: ConnectivityMessage
+  ) async throws {
+    let session = self.session
+    #if canImport(Dispatch)
+      try await withCheckedThrowingContinuation {
+        (continuation: CheckedContinuation<Void, any Error>) in
+        applicationContextQueue.async {
+          do {
+            try session.updateApplicationContext(message)
+            continuation.resume()
+          } catch {
+            continuation.resume(throwing: error)
+          }
+        }
+      }
+    #else
+      // Single-threaded platforms (WASI/Wasm) have no Dispatch; the call
+      // cannot race, so invoke it directly.
+      try session.updateApplicationContext(message)
+    #endif
   }
 
   // MARK: - Dictionary Message Routing
@@ -66,52 +120,70 @@ internal struct MessageRouter {
   /// - Returns: The send result
   /// - Throws: Error if the message cannot be sent
   internal func send(_ message: ConnectivityMessage) async throws -> ConnectivitySendResult {
-    if session.isPairedAppInstalled {
-      // Always deliver via application context, regardless of reachability.
-      //
-      // `session.isReachable` is intentionally not consulted on this dictionary
-      // path (the binary `sendBinary` path still gates on it). The combination
-      // `isPairedAppInstalled == true` with `isPaired == false` — which some
-      // simulator states report — also falls through here on purpose: routing via
-      // application context is harmless and correct in that case.
-      //
-      // This app's messages are latest-desired-state (start config, stop,
-      // request, state update), for which application context is the correct
-      // transport in every reachability state: WatchConnectivity delivers it
-      // immediately when the counterpart is active and persists + replays it on
-      // activation/reachability change otherwise.
-      //
-      // `sendMessage` is deliberately NOT used. It requires a stable reachable
-      // link and a reply, and a flapping link makes WCSession invoke the error
-      // handler more than once for the same message (WCErrorCodeNotReachable
-      // then WCErrorCodeMessageReplyTimedOut), which both loses the command and
-      // crashes the checked continuation with a double resume.
-      try session.updateApplicationContext(message)
-      return ConnectivitySendResult(
-        message: message,
-        context: .applicationContext(transport: .dictionary)
+    if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+      SundialLogger.streamDebug(
+        "MessageRouter.send: isPairedAppInstalled=\(session.isPairedAppInstalled)"
+          + " isReachable=\(session.isReachable)"
       )
-    } else {
-      // No way to deliver the message - determine specific reason
-      // Check if devices are paired at all
-      if !session.isPaired {
-        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-          SundialLogger.stream.error(
-            "MessageRouter: Cannot send - devices not paired (isPaired=\(session.isPaired))"
-          )
-        }
-        throw ConnectivityError.deviceNotPaired
-      } else {
-        // Devices are paired but app not installed
-        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-          SundialLogger.stream.error(
-            // swiftlint:disable:next line_length
-            "MessageRouter: Cannot send - companion app not installed (isPaired=\(session.isPaired), isPairedAppInstalled=\(session.isPairedAppInstalled))"
-          )
-        }
-        throw ConnectivityError.companionAppNotInstalled
-      }
     }
+    guard session.isPairedAppInstalled else {
+      // No way to deliver the message - determine specific reason
+      throw undeliverableError()
+    }
+    // Always deliver via application context, regardless of reachability.
+    //
+    // `session.isReachable` is intentionally not consulted on this dictionary
+    // path (the binary `sendBinary` path still gates on it). The combination
+    // `isPairedAppInstalled == true` with `isPaired == false` — which some
+    // simulator states report — also falls through here on purpose: routing via
+    // application context is harmless and correct in that case.
+    //
+    // This app's messages are latest-desired-state (start config, stop,
+    // request, state update), for which application context is the correct
+    // transport in every reachability state: WatchConnectivity delivers it
+    // immediately when the counterpart is active and persists + replays it on
+    // activation/reachability change otherwise.
+    //
+    // `sendMessage` is deliberately NOT used. It requires a stable reachable
+    // link and a reply, and a flapping link makes WCSession invoke the error
+    // handler more than once for the same message (WCErrorCodeNotReachable
+    // then WCErrorCodeMessageReplyTimedOut), which both loses the command and
+    // crashes the checked continuation with a double resume.
+    if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+      SundialLogger.streamDebug("MessageRouter.send: calling updateApplicationContext")
+    }
+    try await updateApplicationContextSerialized(message)
+    if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+      SundialLogger.streamDebug("MessageRouter.send: updateApplicationContext returned")
+    }
+    return ConnectivitySendResult(
+      message: message,
+      context: .applicationContext(transport: .dictionary)
+    )
+  }
+
+  /// Determines the specific error for a message that cannot be delivered.
+  ///
+  /// - Returns: `.deviceNotPaired` when no counterpart device is paired,
+  ///   otherwise `.companionAppNotInstalled`.
+  private func undeliverableError() -> ConnectivityError {
+    // Check if devices are paired at all
+    if !session.isPaired {
+      if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+        SundialLogger.streamError(
+          "MessageRouter: Cannot send - devices not paired (isPaired=\(session.isPaired))"
+        )
+      }
+      return ConnectivityError.deviceNotPaired
+    }
+    // Devices are paired but app not installed
+    if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+      SundialLogger.streamError(
+        // swiftlint:disable:next line_length
+        "MessageRouter: Cannot send - companion app not installed (isPaired=\(session.isPaired), isPairedAppInstalled=\(session.isPairedAppInstalled))"
+      )
+    }
+    return ConnectivityError.companionAppNotInstalled
   }
 
   // MARK: - Binary Message Routing

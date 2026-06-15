@@ -46,6 +46,15 @@ public actor MessageDistributor {
   private let continuationManager: StreamContinuationManager
   private let messageDecoder: MessageDecoder?
 
+  /// The last application context successfully delivered to subscribers.
+  ///
+  /// WatchConnectivity persists the counterpart's last context and the
+  /// observer re-checks it after activation, on every reachability change,
+  /// and on foreground — so the same dictionary arrives here repeatedly.
+  /// Exact duplicates are suppressed; WCSession never transmits two
+  /// identical consecutive contexts, so only replays are affected.
+  private var lastDeliveredApplicationContext: ConnectivityMessage?
+
   // MARK: - Initialization
 
   internal init(
@@ -72,8 +81,8 @@ public actor MessageDistributor {
         let decoded = try decoder.decode(message)
         await continuationManager.yieldTypedMessage(decoded)
       } catch {
-        // Decoding failed - crash in debug, log in production
-        assertionFailure("Failed to decode message: \(error)")
+        // Remote input, not a programmer error — a counterpart running a
+        // different build sends schemas we can't decode. Log and drop.
         if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
           SundialLogger.stream.error("Failed to decode message: \(String(describing: error))")
         }
@@ -85,6 +94,21 @@ public actor MessageDistributor {
     _ applicationContext: ConnectivityMessage,
     error: (any Error)?
   ) async {
+    // Suppress replays of the context already delivered (see
+    // `lastDeliveredApplicationContext`). Errored deliveries bypass the
+    // cache: they reach raw subscribers and are never recorded as delivered.
+    if error == nil {
+      if let last = lastDeliveredApplicationContext,
+        NSDictionary(dictionary: applicationContext).isEqual(to: last)
+      {
+        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+          SundialLogger.streamDebug("Skipping replayed application context")
+        }
+        return
+      }
+      lastDeliveredApplicationContext = applicationContext
+    }
+
     // Send to raw stream subscribers
     let result = ConnectivityReceiveResult(
       message: applicationContext,
@@ -98,8 +122,8 @@ public actor MessageDistributor {
         let decoded = try decoder.decode(applicationContext)
         await continuationManager.yieldTypedMessage(decoded)
       } catch {
-        // Decoding failed - crash in debug, log in production
-        assertionFailure("Failed to decode application context: \(error)")
+        // Remote input, not a programmer error — a counterpart running a
+        // different build sends schemas we can't decode. Log and drop.
         if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
           SundialLogger.stream.error(
             "Failed to decode application context: \(String(describing: error))"
@@ -122,8 +146,8 @@ public actor MessageDistributor {
         let decoded = try decoder.decodeBinary(data)
         await continuationManager.yieldTypedMessage(decoded)
       } catch {
-        // Decoding failed - crash in debug, log in production
-        assertionFailure("Failed to decode binary message: \(error)")
+        // Remote input, not a programmer error — a counterpart running a
+        // different build sends schemas we can't decode. Log and drop.
         if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
           SundialLogger.stream.error(
             "Failed to decode binary message: \(String(describing: error))"
