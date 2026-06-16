@@ -126,21 +126,10 @@ public actor MessageDistributor {
       if let last = lastDeliveredApplicationContext,
         Self.applicationContext(applicationContext, matches: last)
       {
-        // The silent-drop site: an identical context is never delivered. App
-        // messages carry a monotonic revision so this should not fire for live
-        // updates — when it does, the type tells us what was suppressed.
-        let messageType = applicationContext.messageType
-        SundialLogger.streamEvent(
-          .debug,
-          .dropped,
-          "skipping replayed application context",
-          fields: [
-            SundialStreamLog.Event.Field("type", messageType),
-            SundialStreamLog.Event.Field("reason", "dedup"),
-          ]
-        )
+        SundialLogger.streamDebug("Skipping replayed application context")
         return
       }
+      lastDeliveredApplicationContext = applicationContext
     }
 
     // Send to raw stream subscribers
@@ -150,29 +139,17 @@ public actor MessageDistributor {
     )
     await continuationManager.yieldMessageReceived(result)
 
-    // Record the context as delivered only after delivery actually succeeds.
-    // Caching before a typed decode would poison the dedup cache: a decode
-    // failure (counterpart on a mismatched schema) would mark the context
-    // delivered, and every later replay of that identical context would be
-    // silently dropped — typed subscribers would permanently miss it.
-    if error == nil {
-      if let decoder = messageDecoder {
-        do {
-          let decoded = try decoder.decode(applicationContext)
-          await continuationManager.yieldTypedMessage(decoded)
-          lastDeliveredApplicationContext = applicationContext
-        } catch {
-          // Remote input, not a programmer error — a counterpart running a
-          // different build sends schemas we can't decode. Log and drop, and
-          // leave the cache untouched so a future replay can retry the decode.
-          SundialLogger.streamError(
-            "Failed to decode application context: \(String(describing: error))"
-          )
-        }
-      } else {
-        // No decoder: raw-only delivery already happened above, so caching the
-        // context here is correct.
-        lastDeliveredApplicationContext = applicationContext
+    // Decode and send to typed stream subscribers if no error
+    if error == nil, let decoder = messageDecoder {
+      do {
+        let decoded = try decoder.decode(applicationContext)
+        await continuationManager.yieldTypedMessage(decoded)
+      } catch {
+        // Remote input, not a programmer error — a counterpart running a
+        // different build sends schemas we can't decode. Log and drop.
+        SundialLogger.streamError(
+          "Failed to decode application context: \(String(describing: error))"
+        )
       }
     }
   }

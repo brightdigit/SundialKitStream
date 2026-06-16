@@ -53,6 +53,14 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
   internal var sentMessageData: [Data] = []
   /// When set, `updateApplicationContext` throws this instead of recording.
   internal var updateApplicationContextError: (any Error)?
+  /// Simulated time spent blocked inside `updateApplicationContext`.
+  internal var updateApplicationContextDelay: TimeInterval?
+  /// Guards the concurrency-tracking counters below, which are mutated from
+  /// whatever thread the transport call arrives on.
+  private let stateLock = NSLock()
+  private var activeContextUpdates = 0
+  /// High-water mark of concurrent `updateApplicationContext` executions.
+  internal private(set) var maxConcurrentContextUpdates = 0
   /// Reply delivered to `sendMessage`'s handler, if any.
   internal var nextSendMessageReply: Result<ConnectivityMessage, any Error>?
   /// Reply delivered to `sendMessageData`'s handler, if any.
@@ -61,6 +69,28 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
   internal func activate() throws {}
 
   internal func updateApplicationContext(_ context: ConnectivityMessage) throws {
+    stateLock.lock()
+    activeContextUpdates += 1
+    maxConcurrentContextUpdates = max(maxConcurrentContextUpdates, activeContextUpdates)
+    let delay = updateApplicationContextDelay
+    stateLock.unlock()
+
+    // Simulate WCSession blocking inside the call. Held *outside* the lock so
+    // overlapping callers are observable via `maxConcurrentContextUpdates`.
+    // `Thread` is unavailable on WASI (no Dispatch); that runtime is
+    // single-threaded, so there is no overlap to simulate and the delay is skipped.
+    #if canImport(Dispatch)
+      if let delay {
+        Thread.sleep(forTimeInterval: delay)
+      }
+    #else
+      _ = delay
+    #endif
+
+    stateLock.lock()
+    activeContextUpdates -= 1
+    stateLock.unlock()
+
     if let updateApplicationContextError {
       throw updateApplicationContextError
     }

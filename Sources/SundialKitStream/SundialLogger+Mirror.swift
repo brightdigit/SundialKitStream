@@ -31,10 +31,9 @@ import Foundation
 
 #if canImport(os.log)
   import os.log
-#endif
 
-extension SundialLogger {
-  #if canImport(os.log)
+  @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
+  extension SundialLogger {
     /// Whether log lines should also be printed to standard output.
     ///
     /// OSLog output is not carried by `devicectl device process launch
@@ -42,69 +41,51 @@ extension SundialLogger {
     /// the `SUNDIAL_CONSOLE` environment variable (e.g. via devicectl's
     /// `DEVICECTL_CHILD_` prefix) mirrors stream-category diagnostics to
     /// stdout so they reach the attached console.
-    private static let mirrorsToStandardOutput: Bool =
+    internal static let mirrorsToStandardOutput: Bool =
       ProcessInfo.processInfo.environment["SUNDIAL_CONSOLE"] != nil
-  #endif
 
-  /// Logs a debug-level diagnostic with no structured fields.
-  /// - Parameter message: The message to log.
-  internal static func streamDebug(_ message: String) {
-    emitStream(SundialStreamLog.Event(level: .debug, kind: .generic, message: message))
-  }
-
-  /// Logs an error-level diagnostic with no structured fields.
-  /// - Parameter message: The message to log.
-  internal static func streamError(_ message: String) {
-    emitStream(SundialStreamLog.Event(level: .error, kind: .generic, message: message))
-  }
-
-  /// Logs a structured stream event — message plus key/value fields — to OSLog
-  /// (mirrored to stdout when enabled) and forwards it to the host sink.
-  /// - Parameters:
-  ///   - level: Severity.
-  ///   - kind: The event's intent, mapped by the host onto its own taxonomy.
-  ///   - message: Human-readable summary.
-  ///   - fields: Ordered diagnostic detail.
-  internal static func streamEvent(
-    _ level: SundialStreamLog.Level,
-    _ kind: SundialStreamLog.Kind,
-    _ message: String,
-    fields: [SundialStreamLog.Event.Field] = []
-  ) {
-    emitStream(
-      SundialStreamLog.Event(level: level, kind: kind, message: message, fields: fields)
-    )
-  }
-
-  #if canImport(os.log)
-    /// Emits an event to OSLog, the optional stdout mirror, and the host sink.
-    private static func emitStream(_ event: SundialStreamLog.Event) {
+    /// Logs a debug-level message to the stream logger, mirrored to stdout
+    /// when ``mirrorsToStandardOutput`` is enabled.
+    ///
+    /// Debug level keeps routine send-path diagnostics out of persisted
+    /// production logs; the stdout mirror — what device-log streaming
+    /// actually reads — is independent of the OSLog level.
+    /// - Parameter message: The message to log.
+    internal static func streamDebug(_ message: String) {
       // Public: deliberate diagnostics with no user data; the default
       // .private redaction makes streamed device logs useless.
-      let rendered = event.rendered
-      switch event.level {
-      case .debug:
-        stream.debug("\(rendered, privacy: .public)")
-      case .error:
-        stream.error("\(rendered, privacy: .public)")
-      }
+      stream.debug("\(message, privacy: .public)")
       if mirrorsToStandardOutput {
-        print("[SundialKit.Stream] \(rendered)")
+        print("[SundialKit.Stream] \(message)")
       }
-      SundialStreamLog.forward(event)
     }
-  #else
-    /// Emits an event to the fallback logger (which already prints) and the host
-    /// sink.
-    private static func emitStream(_ event: SundialStreamLog.Event) {
-      let rendered = event.rendered
-      switch event.level {
-      case .debug:
-        stream.debug(rendered)
-      case .error:
-        stream.error(rendered)
+
+    /// Logs an error-level message to the stream logger, mirrored to stdout
+    /// when ``mirrorsToStandardOutput`` is enabled.
+    /// - Parameter message: The message to log.
+    internal static func streamError(_ message: String) {
+      stream.error("\(message, privacy: .public)")
+      if mirrorsToStandardOutput {
+        print("[SundialKit.Stream] ERROR: \(message)")
       }
-      SundialStreamLog.forward(event)
     }
-  #endif
-}
+  }
+#else
+  extension SundialLogger {
+    /// Logs a debug-level message to the stream logger.
+    ///
+    /// The fallback logger already prints to stdout, so no mirror is needed.
+    /// - Parameter message: The message to log.
+    internal static func streamDebug(_ message: String) {
+      stream.debug(message)
+    }
+
+    /// Logs an error-level message to the stream logger.
+    ///
+    /// The fallback logger already prints to stdout, so no mirror is needed.
+    /// - Parameter message: The message to log.
+    internal static func streamError(_ message: String) {
+      stream.error(message)
+    }
+  }
+#endif
