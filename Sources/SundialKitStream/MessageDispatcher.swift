@@ -31,10 +31,6 @@ import Foundation
 import SundialKitConnectivity
 import SundialKitCore
 
-#if canImport(os.log)
-  import os.log
-#endif
-
 /// Internal helper for dispatching received messages to stream subscribers.
 ///
 /// `MessageDispatcher` handles the distribution of incoming messages to various
@@ -94,9 +90,7 @@ internal struct MessageDispatcher {
       } catch {
         // Decoding failed - crash in debug, log in production
         assertionFailure("Failed to decode message: \(error)")
-        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-          SundialLogger.stream.error("Failed to decode message: \(String(describing: error))")
-        }
+        SundialLogger.streamError("Failed to decode message: \(String(describing: error))")
       }
     }
   }
@@ -126,11 +120,9 @@ internal struct MessageDispatcher {
       } catch {
         // Decoding failed - crash in debug, log in production
         assertionFailure("Failed to decode application context: \(error)")
-        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-          SundialLogger.stream.error(
-            "Failed to decode application context: \(String(describing: error))"
-          )
-        }
+        SundialLogger.streamError(
+          "Failed to decode application context: \(String(describing: error))"
+        )
       }
     }
   }
@@ -157,11 +149,9 @@ internal struct MessageDispatcher {
       } catch {
         // Decoding failed - crash in debug, log in production
         assertionFailure("Failed to decode binary message: \(error)")
-        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-          SundialLogger.stream.error(
-            "Failed to decode binary message: \(String(describing: error))"
-          )
-        }
+        SundialLogger.streamError(
+          "Failed to decode binary message: \(String(describing: error))"
+        )
       }
     }
   }

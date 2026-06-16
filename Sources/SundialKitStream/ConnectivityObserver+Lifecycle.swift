@@ -37,6 +37,9 @@ public import SundialKitCore
 #if canImport(AppKit)
   import AppKit
 #endif
+#if canImport(WatchKit)
+  import WatchKit
+#endif
 
 @available(macOS 10.15, iOS 13, watchOS 6, tvOS 13, *)
 extension ConnectivityObserver {
@@ -56,8 +59,11 @@ extension ConnectivityObserver {
   /// ]
   /// try await observer.updateApplicationContext(context)
   /// ```
-  public func updateApplicationContext(_ context: ConnectivityMessage) throws {
-    try session.updateApplicationContext(context)
+  public func updateApplicationContext(_ context: ConnectivityMessage) async throws {
+    // Routed through the router's serial queue: the underlying WCSession call
+    // is synchronous, and running it directly on this actor would block a
+    // cooperative-pool thread (and race concurrent router sends).
+    try await messageRouter.updateApplicationContextSerialized(context)
   }
 
   /// Sets up automatic observation of app lifecycle to check for pending application context.
@@ -86,8 +92,14 @@ extension ConnectivityObserver {
         // iOS/tvOS
         let notificationName = UIApplication.didBecomeActiveNotification
       #elseif os(watchOS)
-        // watchOS - use extension-specific notification
-        let notificationName = Notification.Name("NSExtensionHostDidBecomeActiveNotification")
+        // watchOS — WKApplication covers single-target SwiftUI-lifecycle apps.
+        // (The old NSExtensionHost name only ever fired for legacy
+        // WatchKit-extension apps, leaving this path dead on modern watchOS.)
+        // Read on the main actor: the property is MainActor-isolated in
+        // SDKs before the Xcode 27 beta.
+        let notificationName = await MainActor.run {
+          WKApplication.didBecomeActiveNotification
+        }
       #elseif canImport(AppKit)
         // macOS
         let notificationName = NSApplication.didBecomeActiveNotification
