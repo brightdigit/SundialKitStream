@@ -1,5 +1,5 @@
 //
-//  ConnectivityObserverIntegrationTests.swift
+//  ConnectivityObserver.ApplicationContext.IntegrationTests.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.

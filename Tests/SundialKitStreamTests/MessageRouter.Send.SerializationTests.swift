@@ -1,5 +1,5 @@
 //
-//  MessageRouterSerializationTests.swift
+//  MessageRouter.Send.SerializationTests.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
