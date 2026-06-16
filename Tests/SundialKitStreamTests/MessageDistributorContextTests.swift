@@ -37,14 +37,14 @@ import Testing
 @Suite("MessageDistributor application context handling")
 internal struct MessageDistributorContextTests {
   private struct TestMessage: Messagable {
-    internal static let key: String = "test"
-    internal let value: String
+    static let key: String = "test"
+    let value: String
 
-    internal init(from message: ConnectivityMessage) {
+    init(from message: ConnectivityMessage) {
       self.value = message["value"] as? String ?? ""
     }
 
-    internal func parameters() -> ConnectivityMessage {
+    func parameters() -> ConnectivityMessage {
       ["value": value]
     }
   }

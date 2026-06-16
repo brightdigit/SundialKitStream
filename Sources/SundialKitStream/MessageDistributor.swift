@@ -31,10 +31,6 @@ public import Foundation
 public import SundialKitConnectivity
 public import SundialKitCore
 
-#if canImport(os.log)
-  import os.log
-#endif
-
 /// Distributes incoming messages to appropriate stream subscribers
 ///
 /// This type handles message decoding and distribution to both
@@ -65,6 +61,37 @@ public actor MessageDistributor {
     self.messageDecoder = messageDecoder
   }
 
+  // MARK: - Context Comparison
+
+  /// Compares two application contexts for equality in a way that is stable
+  /// across platforms.
+  ///
+  /// `NSDictionary.isEqual(to:)` relies on Objective-C bridging of the
+  /// heterogeneous `[String: any Sendable]` values, which swift-corelibs
+  /// Foundation (Linux/Windows/Android/WASI) does not reproduce — identical
+  /// contexts compare unequal there, defeating replay suppression. Canonical
+  /// JSON (sorted keys) yields identical bytes for equal contexts on every
+  /// platform. A context holding non-JSON property-list values (e.g. `Date`,
+  /// `Data`) falls back to `NSDictionary`; in that case it is treated as
+  /// changed off Apple platforms and delivered, which is safe (replays only).
+  private static func applicationContext(
+    _ lhs: ConnectivityMessage,
+    matches rhs: ConnectivityMessage
+  ) -> Bool {
+    let options: JSONSerialization.WritingOptions = [.sortedKeys]
+    if let lhsData = try? JSONSerialization.data(withJSONObject: lhs, options: options),
+      let rhsData = try? JSONSerialization.data(withJSONObject: rhs, options: options)
+    {
+      return lhsData == rhsData
+    }
+    // Non-JSON property-list values (e.g. Date/Data): equality falls back to
+    // NSDictionary, which is only reliable on Apple platforms.
+    SundialLogger.streamDebug(
+      "applicationContext comparison fell back to NSDictionary (non-JSON values)"
+    )
+    return NSDictionary(dictionary: lhs).isEqual(to: rhs)
+  }
+
   // MARK: - Message Handling
 
   internal func handleMessage(
@@ -83,9 +110,7 @@ public actor MessageDistributor {
       } catch {
         // Remote input, not a programmer error — a counterpart running a
         // different build sends schemas we can't decode. Log and drop.
-        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-          SundialLogger.stream.error("Failed to decode message: \(String(describing: error))")
-        }
+        SundialLogger.streamError("Failed to decode message: \(String(describing: error))")
       }
     }
   }
@@ -101,9 +126,7 @@ public actor MessageDistributor {
       if let last = lastDeliveredApplicationContext,
         Self.applicationContext(applicationContext, matches: last)
       {
-        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-          SundialLogger.streamDebug("Skipping replayed application context")
-        }
+        SundialLogger.streamDebug("Skipping replayed application context")
         return
       }
       lastDeliveredApplicationContext = applicationContext
@@ -124,36 +147,11 @@ public actor MessageDistributor {
       } catch {
         // Remote input, not a programmer error — a counterpart running a
         // different build sends schemas we can't decode. Log and drop.
-        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-          SundialLogger.stream.error(
-            "Failed to decode application context: \(String(describing: error))"
-          )
-        }
+        SundialLogger.streamError(
+          "Failed to decode application context: \(String(describing: error))"
+        )
       }
     }
-  }
-
-  /// Compares two application contexts for equality in a way that is stable
-  /// across platforms.
-  ///
-  /// `NSDictionary.isEqual(to:)` relies on Objective-C bridging of the
-  /// heterogeneous `[String: any Sendable]` values, which swift-corelibs
-  /// Foundation (Linux/Windows/Android/WASI) does not reproduce — identical
-  /// contexts compare unequal there, defeating replay suppression. Canonical
-  /// JSON (sorted keys) yields identical bytes for equal contexts on every
-  /// platform. A context holding non-JSON property-list values (e.g. `Date`,
-  /// `Data`) falls back to `NSDictionary`; in that case it is treated as
-  /// changed off Apple platforms and delivered, which is safe (replays only).
-  private static func applicationContext(
-    _ lhs: ConnectivityMessage,
-    matches rhs: ConnectivityMessage
-  ) -> Bool {
-    let options: JSONSerialization.WritingOptions = [.sortedKeys]
-    if let lhsData = try? JSONSerialization.data(withJSONObject: lhs, options: options),
-      let rhsData = try? JSONSerialization.data(withJSONObject: rhs, options: options) {
-      return lhsData == rhsData
-    }
-    return NSDictionary(dictionary: lhs).isEqual(to: rhs)
   }
 
   internal func handleBinaryMessage(
@@ -171,11 +169,9 @@ public actor MessageDistributor {
       } catch {
         // Remote input, not a programmer error — a counterpart running a
         // different build sends schemas we can't decode. Log and drop.
-        if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-          SundialLogger.stream.error(
-            "Failed to decode binary message: \(String(describing: error))"
-          )
-        }
+        SundialLogger.streamError(
+          "Failed to decode binary message: \(String(describing: error))"
+        )
       }
     }
   }

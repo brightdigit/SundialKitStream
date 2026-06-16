@@ -42,21 +42,15 @@ extension ConnectivityObserver {
   public func sendMessage(_ message: ConnectivityMessage) async throws -> ConnectivitySendResult {
     do {
       let sendResult = try await messageRouter.send(message)
-      if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-        SundialLogger.streamDebug("sendMessage: router send returned")
-      }
+      SundialLogger.streamDebug("sendMessage: router send returned")
 
       // Notify send result stream subscribers
       await messageDistributor.notifySendResult(sendResult)
-      if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-        SundialLogger.streamDebug("sendMessage: notifySendResult completed")
-      }
+      SundialLogger.streamDebug("sendMessage: notifySendResult completed")
 
       return sendResult
     } catch {
-      if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-        SundialLogger.streamError("sendMessage failed: \(error)")
-      }
+      SundialLogger.streamError("sendMessage failed: \(error)")
       let sendResult = ConnectivitySendResult(message: message, context: .failure(error))
 
       // Notify send result stream subscribers
@@ -97,17 +91,13 @@ extension ConnectivityObserver {
   {
     // Reached only once the caller's `await` hops onto this actor — if this
     // line never logs, the actor itself is blocked, not the transport below.
-    if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-      SundialLogger.streamDebug("send entered: \(type(of: message))")
-    }
+    SundialLogger.streamDebug("send entered: \(type(of: message))")
     // Determine transport based on type and options
     if let binaryMessage = message as? any BinaryMessagable,
       !options.contains(.forceDictionary)
     {
       // Binary transport
-      if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-        SundialLogger.streamDebug("send: using binary transport")
-      }
+      SundialLogger.streamDebug("send: using binary transport")
       let data = try BinaryMessageEncoder.encode(binaryMessage)
       let originalMessage = message.message()
 
@@ -131,9 +121,7 @@ extension ConnectivityObserver {
       }
     } else {
       // Dictionary transport
-      if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-        SundialLogger.streamDebug("send: using dictionary transport")
-      }
+      SundialLogger.streamDebug("send: using dictionary transport")
       return try await sendMessage(message.message())
     }
   }

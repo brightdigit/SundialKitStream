@@ -35,10 +35,6 @@ import SundialKitCore
   import Dispatch
 #endif
 
-#if canImport(os.log)
-  import os.log
-#endif
-
 /// Internal helper for routing messages through appropriate transports.
 ///
 /// `MessageRouter` encapsulates the logic for selecting the best transport
@@ -120,12 +116,10 @@ internal struct MessageRouter {
   /// - Returns: The send result
   /// - Throws: Error if the message cannot be sent
   internal func send(_ message: ConnectivityMessage) async throws -> ConnectivitySendResult {
-    if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-      SundialLogger.streamDebug(
-        "MessageRouter.send: isPairedAppInstalled=\(session.isPairedAppInstalled)"
-          + " isReachable=\(session.isReachable)"
-      )
-    }
+    SundialLogger.streamDebug(
+      "MessageRouter.send: isPairedAppInstalled=\(session.isPairedAppInstalled)"
+        + " isReachable=\(session.isReachable)"
+    )
     guard session.isPairedAppInstalled else {
       // No way to deliver the message - determine specific reason
       throw undeliverableError()
@@ -149,13 +143,9 @@ internal struct MessageRouter {
     // handler more than once for the same message (WCErrorCodeNotReachable
     // then WCErrorCodeMessageReplyTimedOut), which both loses the command and
     // crashes the checked continuation with a double resume.
-    if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-      SundialLogger.streamDebug("MessageRouter.send: calling updateApplicationContext")
-    }
+    SundialLogger.streamDebug("MessageRouter.send: calling updateApplicationContext")
     try await updateApplicationContextSerialized(message)
-    if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-      SundialLogger.streamDebug("MessageRouter.send: updateApplicationContext returned")
-    }
+    SundialLogger.streamDebug("MessageRouter.send: updateApplicationContext returned")
     return ConnectivitySendResult(
       message: message,
       context: .applicationContext(transport: .dictionary)
@@ -169,20 +159,16 @@ internal struct MessageRouter {
   private func undeliverableError() -> ConnectivityError {
     // Check if devices are paired at all
     if !session.isPaired {
-      if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-        SundialLogger.streamError(
-          "MessageRouter: Cannot send - devices not paired (isPaired=\(session.isPaired))"
-        )
-      }
+      SundialLogger.streamError(
+        "MessageRouter: Cannot send - devices not paired (isPaired=\(session.isPaired))"
+      )
       return ConnectivityError.deviceNotPaired
     }
     // Devices are paired but app not installed
-    if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-      SundialLogger.streamError(
-        // swiftlint:disable:next line_length
-        "MessageRouter: Cannot send - companion app not installed (isPaired=\(session.isPaired), isPairedAppInstalled=\(session.isPairedAppInstalled))"
-      )
-    }
+    SundialLogger.streamError(
+      // swiftlint:disable:next line_length
+      "MessageRouter: Cannot send - companion app not installed (isPaired=\(session.isPaired), isPairedAppInstalled=\(session.isPairedAppInstalled))"
+    )
     return ConnectivityError.companionAppNotInstalled
   }
 
@@ -203,12 +189,10 @@ internal struct MessageRouter {
   ) async throws -> ConnectivitySendResult {
     guard session.isReachable else {
       // Binary messages require reachability - can't use application context
-      if #available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
-        SundialLogger.stream.error(
-          // swiftlint:disable:next line_length
-          "MessageRouter: Cannot send binary - not reachable (isReachable=\(session.isReachable), isPaired=\(session.isPaired), isPairedAppInstalled=\(session.isPairedAppInstalled))"
-        )
-      }
+      SundialLogger.streamError(
+        // swiftlint:disable:next line_length
+        "MessageRouter: Cannot send binary - not reachable (isReachable=\(session.isReachable), isPaired=\(session.isPaired), isPairedAppInstalled=\(session.isPairedAppInstalled))"
+      )
       throw ConnectivityError.notReachable
     }
 
