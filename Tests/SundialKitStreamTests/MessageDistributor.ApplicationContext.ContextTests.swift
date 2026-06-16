@@ -34,87 +34,94 @@ import Testing
 @testable import SundialKitCore
 @testable import SundialKitStream
 
-@Suite("MessageDistributor application context handling")
-internal struct MessageDistributorContextTests {
-  private struct TestMessage: Messagable {
-    static let key: String = "test"
-    let value: String
+extension MessageDistributor {
+  @Suite("Application Context Tests")
+  internal enum ApplicationContext {}
+}
 
-    init(from message: ConnectivityMessage) {
-      self.value = message["value"] as? String ?? ""
+extension MessageDistributor.ApplicationContext {
+  @Suite("MessageDistributor application context handling")
+  internal struct ContextTests {
+    private struct TestMessage: Messagable {
+      static let key: String = "test"
+      let value: String
+
+      init(from message: ConnectivityMessage) {
+        self.value = message["value"] as? String ?? ""
+      }
+
+      func parameters() -> ConnectivityMessage {
+        ["value": value]
+      }
     }
 
-    func parameters() -> ConnectivityMessage {
-      ["value": value]
-    }
-  }
+    /// Collects everything yielded to the raw message-received stream, then
+    /// finishes it so the values can be read back.
+    private static func collectRawDeliveries(
+      drive: (MessageDistributor) async -> Void
+    ) async -> [ConnectivityMessage] {
+      let manager = SundialKitStream.StreamContinuationManager()
+      let distributor = MessageDistributor(continuationManager: manager, messageDecoder: nil)
 
-  /// Collects everything yielded to the raw message-received stream, then
-  /// finishes it so the values can be read back.
-  private static func collectRawDeliveries(
-    drive: (MessageDistributor) async -> Void
-  ) async -> [ConnectivityMessage] {
-    let manager = SundialKitStream.StreamContinuationManager()
-    let distributor = MessageDistributor(continuationManager: manager, messageDecoder: nil)
+      let (stream, continuation) = AsyncStream<ConnectivityReceiveResult>.makeStream()
+      await manager.registerMessageReceived(id: UUID(), continuation: continuation)
+      await drive(distributor)
+      continuation.finish()
 
-    let (stream, continuation) = AsyncStream<ConnectivityReceiveResult>.makeStream()
-    await manager.registerMessageReceived(id: UUID(), continuation: continuation)
-    await drive(distributor)
-    continuation.finish()
-
-    var received: [ConnectivityMessage] = []
-    for await result in stream {
-      received.append(result.message)
-    }
-    return received
-  }
-
-  @Test("Replayed identical application context is delivered once")
-  internal func duplicateContextDeliveredOnce() async {
-    let received = await Self.collectRawDeliveries { distributor in
-      let context: ConnectivityMessage = ["__type": "Start", "value": 1]
-      // Same dictionary three times — activation, reachability, foreground replays.
-      await distributor.handleApplicationContext(context, error: nil)
-      await distributor.handleApplicationContext(context, error: nil)
-      await distributor.handleApplicationContext(context, error: nil)
+      var received: [ConnectivityMessage] = []
+      for await result in stream {
+        received.append(result.message)
+      }
+      return received
     }
 
-    #expect(received.count == 1)
-  }
+    @Test("Replayed identical application context is delivered once")
+    internal func duplicateContextDeliveredOnce() async {
+      let received = await Self.collectRawDeliveries { distributor in
+        let context: ConnectivityMessage = ["__type": "Start", "value": 1]
+        // Same dictionary three times — activation, reachability, foreground replays.
+        await distributor.handleApplicationContext(context, error: nil)
+        await distributor.handleApplicationContext(context, error: nil)
+        await distributor.handleApplicationContext(context, error: nil)
+      }
 
-  @Test("Differing application contexts are all delivered")
-  internal func differingContextsAllDelivered() async {
-    let received = await Self.collectRawDeliveries { distributor in
-      await distributor.handleApplicationContext(["value": 1], error: nil)
-      await distributor.handleApplicationContext(["value": 2], error: nil)
-      await distributor.handleApplicationContext(["value": 1], error: nil)
+      #expect(received.count == 1)
     }
 
-    // The third differs from the *last delivered* context, so it passes too.
-    #expect(received.count == 3)
-  }
+    @Test("Differing application contexts are all delivered")
+    internal func differingContextsAllDelivered() async {
+      let received = await Self.collectRawDeliveries { distributor in
+        await distributor.handleApplicationContext(["value": 1], error: nil)
+        await distributor.handleApplicationContext(["value": 2], error: nil)
+        await distributor.handleApplicationContext(["value": 1], error: nil)
+      }
 
-  @Test("Undecodable message is dropped without trapping")
-  internal func undecodableMessageIsDropped() async {
-    let manager = SundialKitStream.StreamContinuationManager()
-    let decoder = MessageDecoder(messagableTypes: [TestMessage.self])
-    let distributor = MessageDistributor(continuationManager: manager, messageDecoder: decoder)
-
-    let (stream, continuation) = AsyncStream<any Messagable>.makeStream()
-    await manager.registerTypedMessage(id: UUID(), continuation: continuation)
-
-    // Unknown type key — e.g. a counterpart running a newer build. Must log
-    // and drop, never assert.
-    await distributor.handleApplicationContext(
-      ["__type": "UnknownFutureCommand", "payload": "x"],
-      error: nil
-    )
-    continuation.finish()
-
-    var typed: [any Messagable] = []
-    for await message in stream {
-      typed.append(message)
+      // The third differs from the *last delivered* context, so it passes too.
+      #expect(received.count == 3)
     }
-    #expect(typed.isEmpty)
+
+    @Test("Undecodable message is dropped without trapping")
+    internal func undecodableMessageIsDropped() async {
+      let manager = SundialKitStream.StreamContinuationManager()
+      let decoder = MessageDecoder(messagableTypes: [TestMessage.self])
+      let distributor = MessageDistributor(continuationManager: manager, messageDecoder: decoder)
+
+      let (stream, continuation) = AsyncStream<any Messagable>.makeStream()
+      await manager.registerTypedMessage(id: UUID(), continuation: continuation)
+
+      // Unknown type key — e.g. a counterpart running a newer build. Must log
+      // and drop, never assert.
+      await distributor.handleApplicationContext(
+        ["__type": "UnknownFutureCommand", "payload": "x"],
+        error: nil
+      )
+      continuation.finish()
+
+      var typed: [any Messagable] = []
+      for await message in stream {
+        typed.append(message)
+      }
+      #expect(typed.isEmpty)
+    }
   }
 }

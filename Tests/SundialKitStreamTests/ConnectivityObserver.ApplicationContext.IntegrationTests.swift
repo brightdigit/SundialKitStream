@@ -38,85 +38,92 @@ import Testing
   import AppKit
 #endif
 
-/// Integration coverage for `ConnectivityObserver`'s public application-context
-/// API and the app-lifecycle observer that re-delivers a pending context when
-/// the app becomes active.
-@Suite("ConnectivityObserver application context integration")
-internal struct ConnectivityObserverIntegrationTests {
-  private static func installedSession() -> MockConnectivitySession {
-    let session = MockConnectivitySession()
-    session.isPaired = true
-    session.isPairedAppInstalled = true
-    return session
-  }
+extension ConnectivityObserver {
+  @Suite("Application Context Tests")
+  internal enum ApplicationContext {}
+}
 
-  @Test("updateApplicationContext forwards the context to the session")
-  internal func updateForwardsContext() async throws {
-    let session = Self.installedSession()
-    let observer = ConnectivityObserver(session: session)
-
-    try await observer.updateApplicationContext(["__type": "Ping", "value": 1])
-
-    #expect(session.applicationContexts.count == 1)
-    #expect(session.applicationContexts.first?["__type"] as? String == "Ping")
-  }
-
-  @Test("updateApplicationContext propagates session errors")
-  internal func updatePropagatesError() async {
-    let session = Self.installedSession()
-    session.updateApplicationContextError = ConnectivityError.payloadTooLarge
-    let observer = ConnectivityObserver(session: session)
-
-    await #expect(throws: ConnectivityError.payloadTooLarge) {
-      try await observer.updateApplicationContext(["__type": "X"])
+extension ConnectivityObserver.ApplicationContext {
+  /// Integration coverage for `ConnectivityObserver`'s public application-context
+  /// API and the app-lifecycle observer that re-delivers a pending context when
+  /// the app becomes active.
+  @Suite("ConnectivityObserver application context integration")
+  internal struct IntegrationTests {
+    private static func installedSession() -> MockConnectivitySession {
+      let session = MockConnectivitySession()
+      session.isPaired = true
+      session.isPairedAppInstalled = true
+      return session
     }
-  }
 
-  // The watchOS fix swaps the dead `NSExtensionHost…` name for
-  // `WKApplication.didBecomeActiveNotification`; that branch can't run under
-  // `swift test` on macOS, so this exercises the structurally identical
-  // `NSApplication.didBecomeActiveNotification` branch — the same
-  // "pending context delivered on becoming active" wiring. The notification
-  // observer subscribes asynchronously, so the test re-posts on a bounded
-  // schedule (which also bounds the test) rather than relying on a single post.
-  #if canImport(AppKit)
-    @Test("Pending application context is delivered when the app becomes active")
-    internal func deliversPendingContextOnBecomingActive() async throws {
+    @Test("updateApplicationContext forwards the context to the session")
+    internal func updateForwardsContext() async throws {
       let session = Self.installedSession()
-      session.receivedApplicationContext = ["__type": "Pending", "value": 7]
       let observer = ConnectivityObserver(session: session)
 
-      let stream = await observer.messageStream()
-      await observer.setupAppLifecycleObserver()
+      try await observer.updateApplicationContext(["__type": "Ping", "value": 1])
 
-      let delivered = await withTaskGroup(of: ConnectivityReceiveResult?.self) { group in
-        group.addTask {
-          for await result in stream {
-            return result
-          }
-          return nil
-        }
-        group.addTask {
-          for _ in 0..<200 where !Task.isCancelled {
-            NotificationCenter.default.post(
-              name: NSApplication.didBecomeActiveNotification,
-              object: nil
-            )
-            try? await Task.sleep(for: .milliseconds(10))
-          }
-          return nil
-        }
-        var received: ConnectivityReceiveResult?
-        for await case let result? in group {
-          received = result
-          break
-        }
-        group.cancelAll()
-        return received
-      }
-
-      let result = try #require(delivered)
-      #expect(result.message["__type"] as? String == "Pending")
+      #expect(session.applicationContexts.count == 1)
+      #expect(session.applicationContexts.first?["__type"] as? String == "Ping")
     }
-  #endif
+
+    @Test("updateApplicationContext propagates session errors")
+    internal func updatePropagatesError() async {
+      let session = Self.installedSession()
+      session.updateApplicationContextError = ConnectivityError.payloadTooLarge
+      let observer = ConnectivityObserver(session: session)
+
+      await #expect(throws: ConnectivityError.payloadTooLarge) {
+        try await observer.updateApplicationContext(["__type": "X"])
+      }
+    }
+
+    // The watchOS fix swaps the dead `NSExtensionHost…` name for
+    // `WKApplication.didBecomeActiveNotification`; that branch can't run under
+    // `swift test` on macOS, so this exercises the structurally identical
+    // `NSApplication.didBecomeActiveNotification` branch — the same
+    // "pending context delivered on becoming active" wiring. The notification
+    // observer subscribes asynchronously, so the test re-posts on a bounded
+    // schedule (which also bounds the test) rather than relying on a single post.
+    #if canImport(AppKit)
+      @Test("Pending application context is delivered when the app becomes active")
+      internal func deliversPendingContextOnBecomingActive() async throws {
+        let session = Self.installedSession()
+        session.receivedApplicationContext = ["__type": "Pending", "value": 7]
+        let observer = ConnectivityObserver(session: session)
+
+        let stream = await observer.messageStream()
+        await observer.setupAppLifecycleObserver()
+
+        let delivered = await withTaskGroup(of: ConnectivityReceiveResult?.self) { group in
+          group.addTask {
+            for await result in stream {
+              return result
+            }
+            return nil
+          }
+          group.addTask {
+            for _ in 0..<200 where !Task.isCancelled {
+              NotificationCenter.default.post(
+                name: NSApplication.didBecomeActiveNotification,
+                object: nil
+              )
+              try? await Task.sleep(for: .milliseconds(10))
+            }
+            return nil
+          }
+          var received: ConnectivityReceiveResult?
+          for await case let result? in group {
+            received = result
+            break
+          }
+          group.cancelAll()
+          return received
+        }
+
+        let result = try #require(delivered)
+        #expect(result.message["__type"] as? String == "Pending")
+      }
+    #endif
+  }
 }
