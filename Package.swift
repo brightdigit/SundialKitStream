@@ -47,10 +47,12 @@ let swiftSettings: [SwiftSetting] = [
 let package = Package(
   name: "SundialKitStream",
   platforms: [
-    .iOS(.v16),
-    .watchOS(.v9),
-    .tvOS(.v16),
-    .macOS(.v13)
+    // Raised to the floor required by `Synchronization.Mutex` (used by the
+    // host-log bridge in SundialStreamLog).
+    .iOS(.v18),
+    .watchOS(.v11),
+    .tvOS(.v18),
+    .macOS(.v15)
   ],
   products: [
     .library(

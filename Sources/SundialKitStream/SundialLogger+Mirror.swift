@@ -58,6 +58,7 @@ import Foundation
       if mirrorsToStandardOutput {
         print("[SundialKit.Stream] \(message)")
       }
+      SundialStreamLog.forward(.debug, message)
     }
 
     /// Logs an error-level message to the stream logger, mirrored to stdout
@@ -68,6 +69,7 @@ import Foundation
       if mirrorsToStandardOutput {
         print("[SundialKit.Stream] ERROR: \(message)")
       }
+      SundialStreamLog.forward(.error, message)
     }
   }
 #else
@@ -78,6 +80,7 @@ import Foundation
     /// - Parameter message: The message to log.
     internal static func streamDebug(_ message: String) {
       stream.debug(message)
+      SundialStreamLog.forward(.debug, message)
     }
 
     /// Logs an error-level message to the stream logger.
@@ -86,6 +89,7 @@ import Foundation
     /// - Parameter message: The message to log.
     internal static func streamError(_ message: String) {
       stream.error(message)
+      SundialStreamLog.forward(.error, message)
     }
   }
 #endif
