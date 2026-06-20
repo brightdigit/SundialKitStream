@@ -126,7 +126,19 @@ public actor MessageDistributor {
       if let last = lastDeliveredApplicationContext,
         Self.applicationContext(applicationContext, matches: last)
       {
-        SundialLogger.streamDebug("Skipping replayed application context")
+        // The silent-drop site: an identical context is never delivered. App
+        // messages carry a monotonic revision so this should not fire for live
+        // updates — when it does, the type tells us what was suppressed.
+        let messageType = (applicationContext["__type"] as? String) ?? "unknown"
+        SundialLogger.streamEvent(
+          .debug,
+          .dropped,
+          "skipping replayed application context",
+          fields: [
+            SundialStreamLog.Event.Field("type", messageType),
+            SundialStreamLog.Event.Field("reason", "dedup"),
+          ]
+        )
         return
       }
       lastDeliveredApplicationContext = applicationContext

@@ -38,10 +38,13 @@ internal import Synchronization
 /// ``MessageDistributor``, message dispatch) then forwards to that sink, letting
 /// the app capture the full watch↔phone communication trail in one place.
 ///
-/// The sink is stored behind a `Mutex`, so installing and forwarding are safe
-/// from any isolation domain. Apps typically install it once during launch.
+/// The sink receives a structured ``Event`` — a human-readable message plus
+/// ordered key/value fields (message type, transport, reachability, …) — so the
+/// host can preserve that structure rather than re-parse a string. The sink is
+/// stored behind a `Mutex`, so installing and forwarding are safe from any
+/// isolation domain. Apps typically install it once during launch.
 public enum SundialStreamLog {
-  /// The severity of a forwarded stream-log message.
+  /// The severity of a forwarded stream-log event.
   public enum Level: Sendable {
     /// Routine send-path diagnostics.
     case debug
@@ -49,19 +52,19 @@ public enum SundialStreamLog {
     case error
   }
 
-  private static let storage = Mutex<(@Sendable (Level, String) -> Void)?>(nil)
+  private static let storage = Mutex<(@Sendable (Event) -> Void)?>(nil)
 
-  /// Installs (or clears, when `nil`) the host sink that receives stream logs.
+  /// Installs (or clears, when `nil`) the host sink that receives stream events.
   ///
   /// - Parameter sink: A `Sendable` closure invoked for every stream-category
-  ///   log, or `nil` to stop forwarding.
-  public static func setSink(_ sink: (@Sendable (Level, String) -> Void)?) {
+  ///   event, or `nil` to stop forwarding.
+  public static func setSink(_ sink: (@Sendable (Event) -> Void)?) {
     self.storage.withLock { $0 = sink }
   }
 
-  /// Forwards a message to the installed sink, if any.
-  internal static func forward(_ level: Level, _ message: String) {
+  /// Forwards an event to the installed sink, if any.
+  internal static func forward(_ event: Event) {
     let sink = self.storage.withLock { $0 }
-    sink?(level, message)
+    sink?(event)
   }
 }

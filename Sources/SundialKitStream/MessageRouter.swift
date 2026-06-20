@@ -116,9 +116,19 @@ internal struct MessageRouter {
   /// - Returns: The send result
   /// - Throws: Error if the message cannot be sent
   internal func send(_ message: ConnectivityMessage) async throws -> ConnectivitySendResult {
-    SundialLogger.streamDebug(
-      "MessageRouter.send: isPairedAppInstalled=\(session.isPairedAppInstalled)"
-        + " isReachable=\(session.isReachable)"
+    let messageType = (message["__type"] as? String) ?? "unknown"
+    SundialLogger.streamEvent(
+      .debug,
+      .send,
+      "MessageRouter.send",
+      fields: [
+        SundialStreamLog.Event.Field("type", messageType),
+        SundialStreamLog.Event.Field(
+          "isPairedAppInstalled", String(session.isPairedAppInstalled)
+        ),
+        SundialStreamLog.Event.Field("isReachable", String(session.isReachable)),
+        SundialStreamLog.Event.Field("transport", "applicationContext"),
+      ]
     )
     guard session.isPairedAppInstalled else {
       // No way to deliver the message - determine specific reason
