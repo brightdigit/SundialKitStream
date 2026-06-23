@@ -32,7 +32,7 @@ import Testing
 
 @testable import SundialKitConnectivity
 @testable import SundialKitStream
-@testable import SundialKitStreamSync
+@testable import SundialKitStreamContext
 
 @Suite("StaleWindow")
 internal struct StaleWindowTests {
