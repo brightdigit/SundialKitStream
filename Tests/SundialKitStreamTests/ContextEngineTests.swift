@@ -1,5 +1,5 @@
 //
-//  SnapshotSyncTests.swift
+//  ContextEngineTests.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
@@ -33,9 +33,9 @@ import Testing
 @testable import SundialKitConnectivity
 @testable import SundialKitStream
 
-@Suite("SnapshotSync")
+@Suite("ContextEngine")
 @MainActor
-internal struct SnapshotSyncTests {
+internal struct ContextEngineTests {
   /// A minimal ``RevisionedMessage`` used as both the outbound and inbound payload.
   private struct Ping: RevisionedMessage {
     static let key = "Ping"
@@ -73,8 +73,8 @@ internal struct SnapshotSyncTests {
     recorder: Recorder,
     replyOnInbound: Bool = false,
     reassertOnReachable: Bool = true
-  ) -> SnapshotSync<Ping, Ping> {
-    SnapshotSync<Ping, Ping>(
+  ) -> ContextEngine<Ping, Ping> {
+    ContextEngine<Ping, Ping>(
       observer: ConnectivityObserver(session: session),
       replyOnInbound: replyOnInbound,
       reassertOnReachable: reassertOnReachable,

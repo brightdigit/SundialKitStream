@@ -1,5 +1,5 @@
 //
-//  SnapshotSync+Sync.swift
+//  ContextEngine+Sync.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
@@ -27,7 +27,7 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-extension SnapshotSync {
+extension ContextEngine {
   /// Stamps the next revision, builds the current outbound snapshot, and sends it.
   ///
   /// Fire-and-forget. Drives change-, heartbeat-, reconnect-, and reply-triggered

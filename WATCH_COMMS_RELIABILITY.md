@@ -1,8 +1,8 @@
 # Watch↔Phone Communication Reliability
 
-The reliability pattern behind SundialKitStream's **`SnapshotSync`** — how two
+The reliability pattern behind SundialKitStream's **`ContextEngine`** — how two
 peers stay in sync dependably over WatchConnectivity, and how to debug the link.
-`SnapshotSync` (with `RevisionedMessage` / `ExpiringMessage` / `StaleWindow`)
+`ContextEngine` (with `RevisionedMessage` / `ExpiringMessage` / `StaleWindow`)
 productizes everything described here; **AtLeast** is the worked example
 referenced throughout, with `SessionIntent` (phone→watch) and `TimerStateUpdate`
 (watch→phone) as the concrete payloads.
@@ -108,7 +108,7 @@ same-content messages with different revisions encode to distinct dictionaries),
 
 | Term | Definition |
 |------|------------|
-| **`SnapshotSync<Outbound, Inbound>`** | The engine: owns the revision counter, heartbeat re-assert, reachability/installed state, reassert-on-reconnect, and reply-on-inbound. The app supplies `makeOutbound` / `onInbound` / `shouldReassert`. |
+| **`ContextEngine<Outbound, Inbound>`** | The engine: owns the revision counter, heartbeat re-assert, reachability/installed state, reassert-on-reconnect, and reply-on-inbound. The app supplies `makeOutbound` / `onInbound` / `shouldReassert`. |
 | **`RevisionedMessage`** | A payload carrying a monotonic `revision: UInt64`, bumped on every send so each application context is distinct and dedup can't drop a re-assert. A transport-uniqueness / log-correlation token, not a receive-side gate. |
 | **`ExpiringMessage`** | A `RevisionedMessage` that also carries `sentAt`, so a snapshot replayed into a fresh launch can be dropped once it's too old to act on. |
 | **`StaleWindow`** | Decides whether an `ExpiringMessage` is recent enough to act on (default ~30 s) — e.g. a parked `.start` replayed at relaunch can't begin a session. |

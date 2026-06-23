@@ -1,5 +1,5 @@
 //
-//  SnapshotSync.swift
+//  ContextEngine.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
@@ -33,12 +33,12 @@ public import SundialKitConnectivity
 /// Reliable, revisioned, heartbeated one-direction snapshot sync over a
 /// ``ConnectivityObserver``'s application context.
 ///
-/// Each peer owns a `SnapshotSync`: it **sends** its whole desired `Outbound`
+/// Each peer owns a `ContextEngine`: it **sends** its whole desired `Outbound`
 /// snapshot (stamped with a monotonic revision) to the single latest-wins
 /// application-context slot, and **receives** the peer's `Inbound` snapshots. The
 /// app supplies only the domain pieces — how to build the current outbound
 /// snapshot, what to do with an inbound one, and (optionally) when the heartbeat
-/// should re-assert — while `SnapshotSync` owns the generic reliability mechanics:
+/// should re-assert — while `ContextEngine` owns the generic reliability mechanics:
 ///
 /// - **Monotonic revision** on every send, so a re-assert is never deduped away.
 /// - **Heartbeat** re-assertion on an interval, so a dropped delivery self-heals.
@@ -50,7 +50,7 @@ public import SundialKitConnectivity
 /// ``isPairedAppInstalled`` directly. The domain layer applies inbound snapshots
 /// *idempotently* (see ``StaleWindow`` for the intent-side stale filter).
 @MainActor @Observable
-public final class SnapshotSync<Outbound, Inbound>
+public final class ContextEngine<Outbound, Inbound>
 where Outbound: RevisionedMessage, Inbound: Messagable {
   /// Whether the counterpart app is reachable for immediate delivery.
   public internal(set) var isReachable: Bool = false
