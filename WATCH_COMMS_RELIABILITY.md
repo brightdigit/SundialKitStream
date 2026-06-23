@@ -108,7 +108,7 @@ same-content messages with different revisions encode to distinct dictionaries),
 
 | Term | Definition |
 |------|------------|
-| **`ContextEngine<Outbound, Inbound>`** | The engine: owns the revision counter, heartbeat re-assert, reachability/installed state, reassert-on-reconnect, and reply-on-inbound. The app supplies `makeOutbound` / `onInbound` / `shouldReassert`. |
+| **`ContextEngine<Outbound, Inbound>`** | The engine: owns the revision counter, heartbeat re-assert, reachability/installed state, reassert-on-reconnect, and reply-on-inbound. The app supplies `makeOutbound` / `onInbound` / `shouldReassert`. See [CONTEXT_ENGINE.md](./CONTEXT_ENGINE.md) for its anatomy and diagrams. |
 | **`RevisionedMessage`** | A payload carrying a monotonic `revision: UInt64`, bumped on every send so each application context is distinct and dedup can't drop a re-assert. A transport-uniqueness / log-correlation token, not a receive-side gate. |
 | **`ExpiringMessage`** | A `RevisionedMessage` that also carries `sentAt`, so a snapshot replayed into a fresh launch can be dropped once it's too old to act on. |
 | **`StaleWindow`** | Decides whether an `ExpiringMessage` is recent enough to act on (default ~30 s) — e.g. a parked `.start` replayed at relaunch can't begin a session. |
