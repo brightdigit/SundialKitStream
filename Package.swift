@@ -58,6 +58,10 @@ let package = Package(
     .library(
       name: "SundialKitStream",
       targets: ["SundialKitStream"]
+    ),
+    .library(
+      name: "SundialKitStreamSync",
+      targets: ["SundialKitStreamSync"]
     )
   ],
   dependencies: [
@@ -75,9 +79,18 @@ let package = Package(
       ],
       swiftSettings: swiftSettings
     ),
+    .target(
+      name: "SundialKitStreamSync",
+      dependencies: [
+        "SundialKitStream",
+        .product(name: "SundialKitConnectivity", package: "SundialKit"),
+        .product(name: "SundialKitCore", package: "SundialKit")
+      ],
+      swiftSettings: swiftSettings
+    ),
     .testTarget(
       name: "SundialKitStreamTests",
-      dependencies: ["SundialKitStream"],
+      dependencies: ["SundialKitStream", "SundialKitStreamSync"],
       swiftSettings: swiftSettings
     )
   ]

@@ -29,6 +29,7 @@
 
 public import Observation
 public import SundialKitConnectivity
+public import SundialKitStream
 
 /// Reliable, revisioned, heartbeated one-direction snapshot sync over a
 /// ``ConnectivityObserver``'s application context.

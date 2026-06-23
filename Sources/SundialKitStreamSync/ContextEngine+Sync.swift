@@ -27,6 +27,8 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
+import SundialKitStream
+
 extension ContextEngine {
   /// Stamps the next revision, builds the current outbound snapshot, and sends it.
   ///
