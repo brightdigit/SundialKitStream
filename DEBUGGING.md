@@ -4,6 +4,27 @@ Durable recipes for building to, launching on, and live-debugging a physical
 iPhone + Apple Watch that talk over WatchConnectivity (SundialKitStream). Replace
 `<scheme>`, `<bundle-id>`, and the CoreDevice UUIDs with your app's values.
 
+## Live log streaming (both devices at once)
+
+`Scripts/stream-device-logs.sh` streams the iPhone and Apple Watch together —
+`idevicesyslog` over USB when the phone is visible, falling back to a `devicectl`
+`--console` launch over the wireless tunnel. Point it at your app's bundle IDs:
+
+```sh
+Scripts/stream-device-logs.sh \
+  --ios-bundle-id com.example.App \
+  --watch-bundle-id com.example.App.watchkitapp \
+  --process-filter App \
+  --console-env APP_CONSOLE
+```
+
+`--iphone-only` / `--watch-only` narrow the capture; `--out-dir` sets where the
+raw `*-iphone.log` / `*-watch.log` land (each flag also has a matching env var).
+A console launch does not forward OSLog to stdout, so `--console-env NAME` injects
+`DEVICECTL_CHILD_NAME=1` for an app that mirrors its logger — e.g. bridged
+SundialKitStream send/receive diagnostics — to `print()` when that variable is
+set. See `--help` for the full list.
+
 ## Build + install to physical devices
 
 ```sh
