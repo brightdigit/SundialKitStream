@@ -40,7 +40,15 @@ extension ContextEngine {
   }
 
   /// The awaitable core of ``assertNow()`` — stamp, build, send.
+  ///
+  /// Every send (change-driven, heartbeat, reconnect, reply-on-inbound) funnels
+  /// through here, so the single ``ContextEngine/Phase/stopped`` guard is what
+  /// makes ``stop()`` actually halt sends — including an in-flight ``assertNow()``
+  /// `Task` that only lands after `stop()`.
   internal func performAssert() async {
+    guard phase != .stopped else {
+      return
+    }
     outboundRevision += 1
     let message = makeOutbound(outboundRevision)
     await send(message)

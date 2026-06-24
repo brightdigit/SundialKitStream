@@ -37,37 +37,15 @@ import Testing
 @Suite("ContextEngine lifecycle")
 @MainActor
 internal struct ContextEngineLifecycleTests {
+  private typealias Ping = ContextEngineFixtures.Ping
+
   private struct TestError: Error {}
-
-  private struct Ping: RevisionedMessage {
-    static let key = "Ping"
-    let revision: UInt64
-
-    init(revision: UInt64) {
-      self.revision = revision
-    }
-
-    init(from parameters: [String: any Sendable]) throws {
-      self.revision = (parameters["revision"] as? UInt64) ?? 0
-    }
-
-    func parameters() -> [String: any Sendable] {
-      ["revision": revision]
-    }
-  }
 
   /// Counts the main-actor `shouldReassert` evaluations the heartbeat loop makes each
   /// tick, so a test can prove the loop stopped after `stop()`.
   @MainActor private final class Probe {
     var evaluations = 0
     var sentRevisions: [UInt64] = []
-  }
-
-  private static func pairedSession() -> MockConnectivitySession {
-    let session = MockConnectivitySession()
-    session.isPaired = true
-    session.isPairedAppInstalled = true
-    return session
   }
 
   private static func makeSync(
@@ -90,7 +68,7 @@ internal struct ContextEngineLifecycleTests {
 
   @Test("applyInstalled updates the observable companion-installed flag")
   internal func applyInstalledUpdatesFlag() {
-    let sync = Self.makeSync(session: Self.pairedSession(), probe: Probe())
+    let sync = Self.makeSync(session: ContextEngineFixtures.pairedSession(), probe: Probe())
 
     #expect(!sync.isPairedAppInstalled)
     sync.applyInstalled(true)
@@ -99,7 +77,7 @@ internal struct ContextEngineLifecycleTests {
 
   @Test("A send failure sets lastSendError; a later success clears it")
   internal func sendErrorSetsAndClearsLastSendError() async {
-    let session = Self.pairedSession()
+    let session = ContextEngineFixtures.pairedSession()
     let sync = Self.makeSync(session: session, probe: Probe())
 
     session.updateApplicationContextError = TestError()
@@ -113,7 +91,7 @@ internal struct ContextEngineLifecycleTests {
 
   @Test("Activation failure sets lastActivationError, not lastSendError, and skips the heartbeat")
   internal func activationFailureIsDistinctAndSkipsHeartbeat() async {
-    let session = Self.pairedSession()
+    let session = ContextEngineFixtures.pairedSession()
     session.activateError = TestError()
     let probe = Probe()
     let sync = Self.makeSync(
@@ -132,7 +110,7 @@ internal struct ContextEngineLifecycleTests {
 
   @Test("A successful send does not erase a prior activation error")
   internal func successfulSendPreservesActivationError() async {
-    let session = Self.pairedSession()
+    let session = ContextEngineFixtures.pairedSession()
     session.activateError = TestError()
     let sync = Self.makeSync(session: session, probe: Probe())
 
@@ -150,7 +128,7 @@ internal struct ContextEngineLifecycleTests {
   internal func heartbeatFiresWhileRunning() async {
     let probe = Probe()
     let sync = Self.makeSync(
-      session: Self.pairedSession(),
+      session: ContextEngineFixtures.pairedSession(),
       probe: probe,
       heartbeat: .milliseconds(10),
       shouldReassert: { true }
@@ -173,7 +151,7 @@ internal struct ContextEngineLifecycleTests {
     // Return false so the loop only evaluates `shouldReassert` (synchronous) and never
     // spawns a fire-and-forget assert — isolating the loop's stop behavior.
     let sync = Self.makeSync(
-      session: Self.pairedSession(),
+      session: ContextEngineFixtures.pairedSession(),
       probe: probe,
       heartbeat: .milliseconds(15),
       shouldReassert: {
@@ -201,12 +179,45 @@ internal struct ContextEngineLifecycleTests {
 
   @Test("A second start() is a no-op")
   internal func secondStartIsNoOp() async {
-    let sync = Self.makeSync(session: Self.pairedSession(), probe: Probe())
+    let sync = Self.makeSync(session: ContextEngineFixtures.pairedSession(), probe: Probe())
 
     await sync.start()
     await sync.start()
     sync.stop()
 
     #expect(sync.lastActivationError == nil)
+  }
+
+  @Test("performAssert after stop() sends nothing")
+  internal func noSendAfterStop() async {
+    let probe = Probe()
+    let sync = Self.makeSync(session: ContextEngineFixtures.pairedSession(), probe: probe)
+    await sync.start()
+    sync.stop()
+    await sync.performAssert()
+    #expect(probe.sentRevisions.isEmpty)
+  }
+
+  @Test("Activation failure is retryable: a later start() re-activates and runs the heartbeat")
+  internal func activationFailureIsRetryable() async {
+    let session = ContextEngineFixtures.pairedSession()
+    session.activateError = TestError()
+    let probe = Probe()
+    let sync = Self.makeSync(
+      session: session, probe: probe, heartbeat: .milliseconds(10), shouldReassert: { true }
+    )
+    await sync.start()
+    #expect(sync.lastActivationError != nil)
+    #expect(probe.sentRevisions.isEmpty)
+
+    session.activateError = nil
+    await sync.start()
+    defer { sync.stop() }
+    var waited = 0
+    while probe.sentRevisions.isEmpty, waited < 100 {
+      try? await Task.sleep(for: .milliseconds(20))
+      waited += 1
+    }
+    #expect(!probe.sentRevisions.isEmpty)
   }
 }

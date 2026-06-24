@@ -37,36 +37,13 @@ import Testing
 @Suite("ContextEngine")
 @MainActor
 internal struct ContextEngineTests {
-  /// A minimal ``RevisionedMessage`` used as both the outbound and inbound payload.
-  private struct Ping: RevisionedMessage {
-    static let key = "Ping"
-    let revision: UInt64
-
-    init(revision: UInt64) {
-      self.revision = revision
-    }
-
-    init(from parameters: [String: any Sendable]) throws {
-      self.revision = (parameters["revision"] as? UInt64) ?? 0
-    }
-
-    func parameters() -> [String: any Sendable] {
-      ["revision": revision]
-    }
-  }
+  private typealias Ping = ContextEngineFixtures.Ping
 
   /// Captures the revisions built by `makeOutbound` and the snapshots delivered to
   /// `onInbound`, so tests assert without decoding the wire form.
   @MainActor private final class Recorder {
     var sentRevisions: [UInt64] = []
     var received: [Ping] = []
-  }
-
-  private static func pairedSession() -> MockConnectivitySession {
-    let session = MockConnectivitySession()
-    session.isPaired = true
-    session.isPairedAppInstalled = true
-    return session
   }
 
   private static func makeSync(
@@ -89,7 +66,7 @@ internal struct ContextEngineTests {
 
   @Test("Each assert stamps a monotonically increasing revision and sends")
   internal func assertStampsIncrementingRevisions() async {
-    let session = Self.pairedSession()
+    let session = ContextEngineFixtures.pairedSession()
     let recorder = Recorder()
     let sync = Self.makeSync(session: session, recorder: recorder)
 
@@ -102,7 +79,7 @@ internal struct ContextEngineTests {
 
   @Test("Reply-on-inbound answers each received snapshot with current state")
   internal func replyOnInboundSendsState() async {
-    let session = Self.pairedSession()
+    let session = ContextEngineFixtures.pairedSession()
     let recorder = Recorder()
     let sync = Self.makeSync(session: session, recorder: recorder, replyOnInbound: true)
 
@@ -114,7 +91,7 @@ internal struct ContextEngineTests {
 
   @Test("Without reply-on-inbound, a received snapshot triggers no send")
   internal func noReplyWhenDisabled() async {
-    let session = Self.pairedSession()
+    let session = ContextEngineFixtures.pairedSession()
     let recorder = Recorder()
     let sync = Self.makeSync(session: session, recorder: recorder, replyOnInbound: false)
 
@@ -126,7 +103,7 @@ internal struct ContextEngineTests {
 
   @Test("Becoming reachable re-asserts once; staying reachable does not")
   internal func reassertOnReconnect() async {
-    let session = Self.pairedSession()
+    let session = ContextEngineFixtures.pairedSession()
     let recorder = Recorder()
     let sync = Self.makeSync(session: session, recorder: recorder, reassertOnReachable: true)
 
@@ -139,7 +116,7 @@ internal struct ContextEngineTests {
 
   @Test("reassertOnReachable=false updates reachability without sending")
   internal func noReassertWhenDisabled() async {
-    let session = Self.pairedSession()
+    let session = ContextEngineFixtures.pairedSession()
     let recorder = Recorder()
     let sync = Self.makeSync(session: session, recorder: recorder, reassertOnReachable: false)
 

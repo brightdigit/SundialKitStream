@@ -53,6 +53,19 @@ public import SundialKitStream
 @MainActor @Observable
 public final class ContextEngine<Outbound, Inbound>
 where Outbound: RevisionedMessage, Inbound: Messagable {
+  /// The engine's lifecycle. `idle` is re-enterable (first start, or retry after an
+  /// activation failure); `stopped` is terminal (create a new instance to restart).
+  internal enum Phase {
+    /// Never started, or torn down after an activation failure — ``start()`` may run.
+    case idle
+    /// Inside ``start()``, after subscribing and before activation completed.
+    case starting
+    /// Activated; the heartbeat and sends are live.
+    case running
+    /// ``stop()`` was called — terminal; ``performAssert()`` refuses to send.
+    case stopped
+  }
+
   /// Whether the counterpart app is reachable for immediate delivery.
   public internal(set) var isReachable: Bool = false
   /// Whether the paired device has the counterpart app installed.
@@ -62,7 +75,9 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
   /// The error from the most recent activation attempt, or `nil` if it succeeded.
   ///
   /// Kept separate from ``lastSendError`` so a later successful send does not erase
-  /// an activation failure — the two require different recovery (recreate vs retry).
+  /// an activation failure. An activation failure is *retryable*: it leaves the
+  /// engine idle, so calling ``start()`` again re-attempts activation. A send
+  /// failure instead reflects a live but uncooperative link.
   public internal(set) var lastActivationError: (any Error)?
 
   @ObservationIgnored internal let observer: ConnectivityObserver
@@ -74,7 +89,12 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
   @ObservationIgnored internal let onInbound: @MainActor (Inbound) -> Void
 
   @ObservationIgnored internal var outboundRevision: UInt64 = 0
-  @ObservationIgnored private var hasStarted = false
+  /// The engine's lifecycle state. Every send funnels through ``performAssert()``,
+  /// which refuses to send once this is ``Phase/stopped``; ``start()`` re-reads it
+  /// after the activation suspension to detect a ``stop()`` that raced the await.
+  /// `internal` (not `private`) so the same-module ``ContextEngine/performAssert()``
+  /// extension can gate on it.
+  @ObservationIgnored internal var phase: Phase = .idle
   @ObservationIgnored private var streamTask: Task<Void, Never>?
   @ObservationIgnored private var heartbeatTask: Task<Void, Never>?
 
@@ -111,15 +131,15 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
     self.onInbound = onInbound
   }
 
-  /// Starts consuming the observer's streams, activates the session (once), and
-  /// begins the heartbeat. Safe to call more than once; only the first activates.
+  /// Starts consuming the observer's streams, activates the session, and begins the
+  /// heartbeat. A no-op once running; after an activation failure it returns the
+  /// engine to idle so a later call can retry. A call after ``stop()`` is a no-op —
+  /// `stop()` is terminal, so create a new instance to restart.
   public func start() async {
-    // Not resumable: a second start() after stop() is a documented no-op (create a
-    // new instance instead). assertNow()/heartbeat remain wired to the first run.
-    guard !hasStarted else {
+    guard phase == .idle else {
       return
     }
-    hasStarted = true
+    phase = .starting
 
     // Subscribe before activating so a pending application context flushed at
     // activation already has a subscriber instead of racing the callback.
@@ -129,17 +149,30 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
     do {
       try await observer.activate()
     } catch {
-      // Activation failed — surface it distinctly and skip the heartbeat, which
-      // would otherwise send into a never-activated session every interval.
+      // Activation failed — surface it distinctly and tear down. Returning to
+      // .idle makes a retry possible; cancelling streamTask stops the consume
+      // loop from sending into the never-activated session (reply-on-inbound /
+      // reassert-on-reachable both route through performAssert).
       lastActivationError = error
+      streamTask?.cancel()
+      streamTask = nil
+      phase = .idle
       return
     }
+    // stop() may have run during the activation suspension above: it set
+    // phase = .stopped and already cancelled the tasks, so don't start the
+    // heartbeat (which would otherwise outlive the stop and keep sending).
+    guard phase == .starting else {
+      return
+    }
+    phase = .running
     startHeartbeat()
   }
 
-  /// Cancels the stream and heartbeat tasks. Sending stops; call ``start()`` to
-  /// resume is not supported — create a new instance instead.
+  /// Cancels the stream and heartbeat tasks and blocks further sends. Terminal:
+  /// ``start()`` will not resume a stopped engine — create a new instance instead.
   public func stop() {
+    phase = .stopped
     streamTask?.cancel()
     heartbeatTask?.cancel()
     streamTask = nil
@@ -164,8 +197,11 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
         guard let self, !Task.isCancelled else {
           return
         }
+        // Await the assert directly rather than spawning an untracked Task per
+        // tick: this loop is already async @MainActor, so awaiting keeps the
+        // sends ordered and lets the phase guard short-circuit a post-stop tick.
         if self.shouldReassert() {
-          self.assertNow()
+          await self.performAssert()
         }
       }
     }

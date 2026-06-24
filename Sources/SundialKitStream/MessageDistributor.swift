@@ -129,7 +129,7 @@ public actor MessageDistributor {
         // The silent-drop site: an identical context is never delivered. App
         // messages carry a monotonic revision so this should not fire for live
         // updates — when it does, the type tells us what was suppressed.
-        let messageType = (applicationContext["__type"] as? String) ?? "unknown"
+        let messageType = applicationContext.messageType
         SundialLogger.streamEvent(
           .debug,
           .dropped,

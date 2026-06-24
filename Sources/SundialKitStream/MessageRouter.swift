@@ -116,7 +116,7 @@ internal struct MessageRouter {
   /// - Returns: The send result
   /// - Throws: Error if the message cannot be sent
   internal func send(_ message: ConnectivityMessage) async throws -> ConnectivitySendResult {
-    let messageType = (message["__type"] as? String) ?? "unknown"
+    let messageType = message.messageType
     // Attempt record only — no `transport` field here, since the message has not
     // reached WCSession yet and the guard below may reject it as undeliverable.
     SundialLogger.streamEvent(
