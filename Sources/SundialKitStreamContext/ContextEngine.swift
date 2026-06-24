@@ -148,7 +148,10 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
 
   /// Starts the heartbeat task; stored so it survives view lifecycle.
   internal func startHeartbeat() {
-    heartbeatTask = Task { [weak self, interval = heartbeatInterval] in
+    // @MainActor-isolated so the only suspension point is the sleep: after it
+    // resumes there is no actor hop before `shouldReassert()`, so `stop()` cannot
+    // cancel between the cancellation check and the evaluation.
+    heartbeatTask = Task { @MainActor [weak self, interval = heartbeatInterval] in
       while !Task.isCancelled {
         do {
           try await Task.sleep(for: interval)
@@ -157,7 +160,8 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
           // to one spurious reassert after the engine is considered stopped.
           return
         }
-        guard let self else {
+        // Re-check after the sleep: stop() may have cancelled while suspended.
+        guard let self, !Task.isCancelled else {
           return
         }
         if self.shouldReassert() {
