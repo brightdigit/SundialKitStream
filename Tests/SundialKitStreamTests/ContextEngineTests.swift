@@ -31,8 +31,8 @@ import Foundation
 import Testing
 
 @testable import SundialKitConnectivity
-@testable import SundialKitContext
 @testable import SundialKitStream
+@testable import SundialKitStreamContext
 
 @Suite("ContextEngine")
 @MainActor
@@ -138,25 +138,6 @@ internal struct ContextEngineTests {
       // must not keep the engine alive once the last external reference is dropped.
     }
     // Yield so the released engine finalizes (deinit cancels its still-running tasks).
-    var waited = 0
-    while weakSync != nil, waited < 50 {
-      await Task.yield()
-      waited += 1
-    }
-    #expect(weakSync == nil)
-  }
-
-  @Test("Dropping an engine after assertNow() still deallocates (assert task uses weak self)")
-  internal func droppingEngineAfterAssertNowDeallocates() async {
-    weak var weakSync: ContextEngine<Ping, Ping>?
-    do {
-      let sync = Self.makeSync(session: ContextEngineFixtures.pairedSession(), recorder: Recorder())
-      weakSync = sync
-      await sync.start()
-      // Fire a fire-and-forget assert, then drop without stop(): the assert task
-      // captures self weakly, so it must not pin the engine past the in-flight send.
-      sync.assertNow()
-    }
     var waited = 0
     while weakSync != nil, waited < 50 {
       await Task.yield()

@@ -1,5 +1,5 @@
 //
-//  ContextEngineFixtures.swift
+//  RevisionedMessage.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
@@ -27,34 +27,20 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-@testable import SundialKitConnectivity
-@testable import SundialKitStreamContext
+public import SundialKitConnectivity
 
-/// Shared fixtures for the `ContextEngine` test suites.
-internal enum ContextEngineFixtures {
-  /// A minimal ``RevisionedMessage`` used as both the outbound and inbound payload.
-  internal struct Ping: RevisionedMessage {
-    internal static let key = "Ping"
-    internal let revision: UInt64
-
-    internal init(revision: UInt64) {
-      self.revision = revision
-    }
-
-    internal init(from parameters: [String: any Sendable]) throws {
-      self.revision = (parameters["revision"] as? UInt64) ?? 0
-    }
-
-    internal func parameters() -> [String: any Sendable] {
-      ["revision": revision]
-    }
-  }
-
-  /// A paired session whose companion app is installed — the ready-to-send baseline.
-  internal static func pairedSession() -> MockConnectivitySession {
-    let session = MockConnectivitySession()
-    session.isPaired = true
-    session.isPairedAppInstalled = true
-    return session
-  }
+/// A message stamped with a monotonic ``revision`` so each application-context
+/// write is a distinct payload that transport-layer dedup can never silently
+/// drop.
+///
+/// WatchConnectivity's application context is a single latest-wins slot, and it
+/// (and SundialKitStream's own coalescing) discards a context identical to the
+/// previous one. A re-asserted snapshot — sent by a heartbeat or on reconnect to
+/// self-heal a dropped delivery — would therefore be lost unless something makes
+/// it differ. A monotonically increasing `revision` is that something. It is *not*
+/// used to gate inbound application (apply each snapshot idempotently instead),
+/// because the counter resets when the sender relaunches.
+public protocol RevisionedMessage: Messagable, Sendable, Equatable {
+  /// A counter the sender increments on every send (change, reconnect, heartbeat).
+  var revision: UInt64 { get }
 }

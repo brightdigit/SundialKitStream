@@ -31,8 +31,8 @@ import Foundation
 import Testing
 
 @testable import SundialKitConnectivity
-@testable import SundialKitContext
 @testable import SundialKitStream
+@testable import SundialKitStreamContext
 
 @Suite("ContextEngine lifecycle")
 @MainActor

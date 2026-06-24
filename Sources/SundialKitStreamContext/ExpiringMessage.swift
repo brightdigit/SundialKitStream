@@ -1,5 +1,5 @@
 //
-//  ContextEngineFixtures.swift
+//  ExpiringMessage.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
@@ -27,34 +27,13 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-@testable import SundialKitConnectivity
-@testable import SundialKitStreamContext
+public import Foundation
 
-/// Shared fixtures for the `ContextEngine` test suites.
-internal enum ContextEngineFixtures {
-  /// A minimal ``RevisionedMessage`` used as both the outbound and inbound payload.
-  internal struct Ping: RevisionedMessage {
-    internal static let key = "Ping"
-    internal let revision: UInt64
-
-    internal init(revision: UInt64) {
-      self.revision = revision
-    }
-
-    internal init(from parameters: [String: any Sendable]) throws {
-      self.revision = (parameters["revision"] as? UInt64) ?? 0
-    }
-
-    internal func parameters() -> [String: any Sendable] {
-      ["revision": revision]
-    }
-  }
-
-  /// A paired session whose companion app is installed — the ready-to-send baseline.
-  internal static func pairedSession() -> MockConnectivitySession {
-    let session = MockConnectivitySession()
-    session.isPaired = true
-    session.isPairedAppInstalled = true
-    return session
-  }
+/// A ``RevisionedMessage`` that also expires, so a snapshot the transport
+/// persisted and replays into a fresh launch can be ignored once it is too old to
+/// act on (e.g. a parked "start" from this morning must not begin a session
+/// tonight). See ``StaleWindow``.
+public protocol ExpiringMessage: RevisionedMessage {
+  /// When the sender produced this snapshot.
+  var sentAt: Date { get }
 }

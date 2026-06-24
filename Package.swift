@@ -59,18 +59,17 @@ let package = Package(
       name: "SundialKitStream",
       targets: ["SundialKitStream"]
     ),
-    // Kept a separate product so the `@Observable` context layer (and its
-    // Observation dependency) stays opt-in: a consumer that only needs
-    // `ConnectivityObserver`/`NetworkObserver` does not link `ContextEngine`.
     .library(
-      name: "SundialKitContext",
-      targets: ["SundialKitContext"]
+      name: "SundialKitStreamContext",
+      targets: ["SundialKitStreamContext"]
     )
   ],
   dependencies: [
-    // CI rewrites this to a remote URL pinned by 40-char revision, which exceeds the line length limit.
-    // swiftlint:disable:next line_length
-    .package(name: "SundialKit", path: "../SundialKit")
+    // Pinned to the matching SundialKit beta branch during co-development: the two
+    // packages evolve together until the API stabilizes. This intentionally trades
+    // build reproducibility for that lockstep — move to a version constraint
+    // (e.g. .upToNextMinor(from:)) once SundialKit cuts a release tag.
+    .package(url: "https://github.com/brightdigit/SundialKit.git", branch: "atleast-beta.6")
   ],
   targets: [
     .target(
@@ -83,16 +82,17 @@ let package = Package(
       swiftSettings: swiftSettings
     ),
     .target(
-      name: "SundialKitContext",
+      name: "SundialKitStreamContext",
       dependencies: [
         "SundialKitStream",
-        .product(name: "SundialKitConnectivity", package: "SundialKit")
+        .product(name: "SundialKitConnectivity", package: "SundialKit"),
+        .product(name: "SundialKitCore", package: "SundialKit")
       ],
       swiftSettings: swiftSettings
     ),
     .testTarget(
       name: "SundialKitStreamTests",
-      dependencies: ["SundialKitStream", "SundialKitContext"],
+      dependencies: ["SundialKitStream", "SundialKitStreamContext"],
       swiftSettings: swiftSettings
     )
   ]

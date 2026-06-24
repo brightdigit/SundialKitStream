@@ -1,5 +1,5 @@
 //
-//  ContextEngineFixtures.swift
+//  StaleWindow.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
@@ -27,34 +27,27 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-@testable import SundialKitConnectivity
-@testable import SundialKitStreamContext
+public import Foundation
 
-/// Shared fixtures for the `ContextEngine` test suites.
-internal enum ContextEngineFixtures {
-  /// A minimal ``RevisionedMessage`` used as both the outbound and inbound payload.
-  internal struct Ping: RevisionedMessage {
-    internal static let key = "Ping"
-    internal let revision: UInt64
+/// Decides whether an ``ExpiringMessage`` is recent enough to act on.
+///
+/// WatchConnectivity persists the last application context and re-delivers it on
+/// activation/foreground, so a fresh launch can receive a snapshot produced long
+/// ago. Filtering by `sentAt` against a bounded window drops those replays even on
+/// first sight, while the heartbeat keeps a still-wanted snapshot's `sentAt`
+/// current so it never ages out mid-wait.
+public struct StaleWindow: Sendable, Equatable {
+  /// The maximum age, in seconds, a snapshot may have and still be acted on.
+  public let interval: TimeInterval
 
-    internal init(revision: UInt64) {
-      self.revision = revision
-    }
-
-    internal init(from parameters: [String: any Sendable]) throws {
-      self.revision = (parameters["revision"] as? UInt64) ?? 0
-    }
-
-    internal func parameters() -> [String: any Sendable] {
-      ["revision": revision]
-    }
+  /// Creates a window of `interval` seconds (default 30).
+  public init(_ interval: TimeInterval = 30) {
+    self.interval = interval
   }
 
-  /// A paired session whose companion app is installed — the ready-to-send baseline.
-  internal static func pairedSession() -> MockConnectivitySession {
-    let session = MockConnectivitySession()
-    session.isPaired = true
-    session.isPairedAppInstalled = true
-    return session
+  /// `true` when `message` was sent within the window (small future clock skew is
+  /// tolerated — a negative age is still ≤ the window).
+  public func isFresh(_ message: some ExpiringMessage, now: Date = Date()) -> Bool {
+    now.timeIntervalSince(message.sentAt) <= interval
   }
 }
