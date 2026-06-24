@@ -117,6 +117,8 @@ internal struct MessageRouter {
   /// - Throws: Error if the message cannot be sent
   internal func send(_ message: ConnectivityMessage) async throws -> ConnectivitySendResult {
     let messageType = (message["__type"] as? String) ?? "unknown"
+    // Attempt record only — no `transport` field here, since the message has not
+    // reached WCSession yet and the guard below may reject it as undeliverable.
     SundialLogger.streamEvent(
       .debug,
       .send,
@@ -127,33 +129,30 @@ internal struct MessageRouter {
           "isPairedAppInstalled", String(session.isPairedAppInstalled)
         ),
         SundialStreamLog.Event.Field("isReachable", String(session.isReachable)),
-        SundialStreamLog.Event.Field("transport", "applicationContext"),
       ]
     )
     guard session.isPairedAppInstalled else {
       // No way to deliver the message - determine specific reason
       throw undeliverableError()
     }
-    // Always deliver via application context, regardless of reachability.
+    // Always deliver via application context, regardless of reachability:
+    // `isReachable` gates only the binary `sendBinary` path, and the
+    // `isPairedAppInstalled && !isPaired` simulator state falls through here on purpose.
+    // These messages are latest-desired-state, for which application context is correct
+    // in every reachability state. `sendMessage` is deliberately NOT used: it needs a
+    // stable reachable link + reply, and a flapping link makes WCSession fire its error
+    // handler twice for one message, double-resuming the checked continuation.
     //
-    // `session.isReachable` is intentionally not consulted on this dictionary
-    // path (the binary `sendBinary` path still gates on it). The combination
-    // `isPairedAppInstalled == true` with `isPaired == false` — which some
-    // simulator states report — also falls through here on purpose: routing via
-    // application context is harmless and correct in that case.
-    //
-    // This app's messages are latest-desired-state (start config, stop,
-    // request, state update), for which application context is the correct
-    // transport in every reachability state: WatchConnectivity delivers it
-    // immediately when the counterpart is active and persists + replays it on
-    // activation/reachability change otherwise.
-    //
-    // `sendMessage` is deliberately NOT used. It requires a stable reachable
-    // link and a reply, and a flapping link makes WCSession invoke the error
-    // handler more than once for the same message (WCErrorCodeNotReachable
-    // then WCErrorCodeMessageReplyTimedOut), which both loses the command and
-    // crashes the checked continuation with a double resume.
-    SundialLogger.streamDebug("MessageRouter.send: calling updateApplicationContext")
+    // Past the guard: the application-context transport is now actually being used.
+    SundialLogger.streamEvent(
+      .debug,
+      .send,
+      "MessageRouter.send: calling updateApplicationContext",
+      fields: [
+        SundialStreamLog.Event.Field("type", messageType),
+        SundialStreamLog.Event.Field("transport", "applicationContext"),
+      ]
+    )
     try await updateApplicationContextSerialized(message)
     SundialLogger.streamDebug("MessageRouter.send: updateApplicationContext returned")
     return ConnectivitySendResult(

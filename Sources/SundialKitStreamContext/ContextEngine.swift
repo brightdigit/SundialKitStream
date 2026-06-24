@@ -59,6 +59,11 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
   public internal(set) var isPairedAppInstalled: Bool = false
   /// The error from the most recent send, or `nil` if it succeeded.
   public internal(set) var lastSendError: (any Error)?
+  /// The error from the most recent activation attempt, or `nil` if it succeeded.
+  ///
+  /// Kept separate from ``lastSendError`` so a later successful send does not erase
+  /// an activation failure — the two require different recovery (recreate vs retry).
+  public internal(set) var lastActivationError: (any Error)?
 
   @ObservationIgnored internal let observer: ConnectivityObserver
   @ObservationIgnored internal let heartbeatInterval: Duration
@@ -109,6 +114,8 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
   /// Starts consuming the observer's streams, activates the session (once), and
   /// begins the heartbeat. Safe to call more than once; only the first activates.
   public func start() async {
+    // Not resumable: a second start() after stop() is a documented no-op (create a
+    // new instance instead). assertNow()/heartbeat remain wired to the first run.
     guard !hasStarted else {
       return
     }
@@ -122,7 +129,10 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
     do {
       try await observer.activate()
     } catch {
-      lastSendError = error
+      // Activation failed — surface it distinctly and skip the heartbeat, which
+      // would otherwise send into a never-activated session every interval.
+      lastActivationError = error
+      return
     }
     startHeartbeat()
   }
@@ -140,7 +150,13 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
   internal func startHeartbeat() {
     heartbeatTask = Task { [weak self, interval = heartbeatInterval] in
       while !Task.isCancelled {
-        try? await Task.sleep(for: interval)
+        do {
+          try await Task.sleep(for: interval)
+        } catch {
+          // Cancelled mid-sleep (e.g. stop()) — exit instead of falling through
+          // to one spurious reassert after the engine is considered stopped.
+          return
+        }
         guard let self else {
           return
         }
