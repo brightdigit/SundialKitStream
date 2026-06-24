@@ -405,8 +405,8 @@ SundialKitStream is part of SundialKit's three-layer architecture:
 For comprehensive documentation, see:
 - [SundialKitStream Documentation](https://swiftpackageindex.com/brightdigit/SundialKitStream/documentation)
 - [SundialKit Main Documentation](https://swiftpackageindex.com/brightdigit/SundialKit/documentation)
-- [ContextEngine](./CONTEXT_ENGINE.md) — reliable revisioned/heartbeated snapshot sync over WatchConnectivity (anatomy + diagrams)
-- [Watch↔Phone Reliability](./WATCH_COMMS_RELIABILITY.md) — the reliability rationale and debugging trace
+- [ContextEngine](./Documentation/CONTEXT_ENGINE.md) — reliable revisioned/heartbeated snapshot sync over WatchConnectivity (anatomy + diagrams)
+- [Watch↔Phone Reliability](./Documentation/WATCH_COMMS_RELIABILITY.md) — the reliability rationale and debugging trace
 
 ## Related Packages
 
