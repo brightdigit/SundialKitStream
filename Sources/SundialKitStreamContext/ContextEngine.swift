@@ -95,8 +95,15 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
   /// `internal` (not `private`) so the same-module ``ContextEngine/performAssert()``
   /// extension can gate on it.
   @ObservationIgnored internal var phase: Phase = .idle
-  @ObservationIgnored private var streamTask: Task<Void, Never>?
-  @ObservationIgnored private var heartbeatTask: Task<Void, Never>?
+  /// `internal` so the same-module ``ContextEngine`` lifecycle extension
+  /// (``start()`` / ``stop()``) can manage it from its own file.
+  @ObservationIgnored internal var streamTask: Task<Void, Never>?
+  /// `internal` (not `private`) so a test can capture the handle before ``stop()``
+  /// nils it and `await` it to drain the cancelled loop deterministically.
+  @ObservationIgnored internal var heartbeatTask: Task<Void, Never>?
+  /// `internal` so the same-module ``ContextEngine/assertNow()`` extension can
+  /// replace the single tracked handle instead of spawning an untracked Task per call.
+  @ObservationIgnored internal var assertTask: Task<Void, Never>?
 
   /// Creates a sync around an existing `observer` (inject a mock-backed one for
   /// tests).
@@ -131,79 +138,15 @@ where Outbound: RevisionedMessage, Inbound: Messagable {
     self.onInbound = onInbound
   }
 
-  /// Starts consuming the observer's streams, activates the session, and begins the
-  /// heartbeat. A no-op once running; after an activation failure it returns the
-  /// engine to idle so a later call can retry. A call after ``stop()`` is a no-op —
-  /// `stop()` is terminal, so create a new instance to restart.
-  public func start() async {
-    guard phase == .idle else {
-      return
-    }
-    phase = .starting
-
-    // Subscribe before activating so a pending application context flushed at
-    // activation already has a subscriber instead of racing the callback.
-    streamTask = Task { [weak self] in
-      await self?.consumeStreams()
-    }
-    do {
-      try await observer.activate()
-    } catch {
-      // Activation failed — surface it distinctly and tear down. Returning to
-      // .idle makes a retry possible; cancelling streamTask stops the consume
-      // loop from sending into the never-activated session (reply-on-inbound /
-      // reassert-on-reachable both route through performAssert).
-      lastActivationError = error
-      streamTask?.cancel()
-      streamTask = nil
-      phase = .idle
-      return
-    }
-    // stop() may have run during the activation suspension above: it set
-    // phase = .stopped and already cancelled the tasks, so don't start the
-    // heartbeat (which would otherwise outlive the stop and keep sending).
-    guard phase == .starting else {
-      return
-    }
-    phase = .running
-    startHeartbeat()
-  }
-
-  /// Cancels the stream and heartbeat tasks and blocks further sends. Terminal:
-  /// ``start()`` will not resume a stopped engine — create a new instance instead.
-  public func stop() {
-    phase = .stopped
+  /// Safety net for a caller that drops the engine without calling ``stop()``:
+  /// cancels the still-running tasks so the stream loops terminate and release the
+  /// observer. Reachable only because the stream task is fed a *weak-engine* closure
+  /// and never pins `self` (see ``consumeStreams(observer:engine:)``) — a running
+  /// `self?.consumeStreams()` instance method would keep the engine alive and this
+  /// would never run.
+  deinit {
     streamTask?.cancel()
     heartbeatTask?.cancel()
-    streamTask = nil
-    heartbeatTask = nil
-  }
-
-  /// Starts the heartbeat task; stored so it survives view lifecycle.
-  internal func startHeartbeat() {
-    // @MainActor-isolated so the only suspension point is the sleep: after it
-    // resumes there is no actor hop before `shouldReassert()`, so `stop()` cannot
-    // cancel between the cancellation check and the evaluation.
-    heartbeatTask = Task { @MainActor [weak self, interval = heartbeatInterval] in
-      while !Task.isCancelled {
-        do {
-          try await Task.sleep(for: interval)
-        } catch {
-          // Cancelled mid-sleep (e.g. stop()) — exit instead of falling through
-          // to one spurious reassert after the engine is considered stopped.
-          return
-        }
-        // Re-check after the sleep: stop() may have cancelled while suspended.
-        guard let self, !Task.isCancelled else {
-          return
-        }
-        // Await the assert directly rather than spawning an untracked Task per
-        // tick: this loop is already async @MainActor, so awaiting keeps the
-        // sends ordered and lets the phase guard short-circuit a post-stop tick.
-        if self.shouldReassert() {
-          await self.performAssert()
-        }
-      }
-    }
+    assertTask?.cancel()
   }
 }

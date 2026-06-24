@@ -169,11 +169,13 @@ internal struct ContextEngineLifecycleTests {
     }
     #expect(probe.evaluations >= 1)
 
+    // Capture the heartbeat handle before stop() nils it, then drain it: awaiting
+    // the cancelled task is deterministic (no sleep race) and guarantees the loop
+    // has fully exited before we assert no further evaluation fired.
+    let heartbeat = sync.heartbeatTask
     sync.stop()
     let evaluationsAtStop = probe.evaluations
-
-    // After stop() cancels the sleep, the loop must exit instead of evaluating again.
-    try? await Task.sleep(for: .milliseconds(120))
+    await heartbeat?.value
     #expect(probe.evaluations == evaluationsAtStop)
   }
 

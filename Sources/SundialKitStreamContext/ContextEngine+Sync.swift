@@ -36,7 +36,13 @@ extension ContextEngine {
   /// sends — every path increments the revision so the application context always
   /// differs and is never silently deduped in transit.
   public func assertNow() {
-    Task { await self.performAssert() }
+    // Track a single replaceable handle rather than spawning an untracked Task per
+    // call: a rapid caller (e.g. a SwiftUI onChange) can't pile up unbounded Tasks,
+    // and stop() cancels a queued assert so it short-circuits at performAssert()'s
+    // phase guard. (send() itself doesn't honor cancellation, so an already-running
+    // send still completes — the win is the bounded handle, not interruption.)
+    assertTask?.cancel()
+    assertTask = Task { await self.performAssert() }
   }
 
   /// The awaitable core of ``assertNow()`` — stamp, build, send.
@@ -63,29 +69,6 @@ extension ContextEngine {
     }
   }
 
-  internal func consumeStreams() async {
-    await withTaskGroup(of: Void.self) { group in
-      group.addTask { [weak self, observer] in
-        for await value in await observer.reachabilityUpdates() {
-          await self?.applyReachable(value)
-        }
-      }
-      group.addTask { [weak self, observer] in
-        for await value in await observer.pairedAppInstalledUpdates() {
-          await self?.applyInstalled(value)
-        }
-      }
-      group.addTask { [weak self, observer] in
-        for await message in await observer.typedMessageStream() {
-          guard let inbound = message as? Inbound else {
-            continue
-          }
-          await self?.handleInbound(inbound)
-        }
-      }
-    }
-  }
-
   internal func applyReachable(_ value: Bool) async {
     let wasReachable = isReachable
     isReachable = value
@@ -103,6 +86,67 @@ extension ContextEngine {
     onInbound(inbound)
     if replyOnInbound {
       await performAssert()
+    }
+  }
+}
+
+extension ContextEngine {
+  /// Consumes the observer's three streams until the task is cancelled or the engine
+  /// deallocates.
+  ///
+  /// Deliberately `nonisolated static` taking a *weak-engine* closure rather than an
+  /// instance method: an `await self?.consumeStreams()` would hold `self` strongly for
+  /// the whole task-group lifetime, so an inner `[weak self]` could never become nil
+  /// and dropping the engine without ``ContextEngine/stop()`` would leak it. Here
+  /// nothing pins the engine — each loop re-resolves it per event and exits via
+  /// `guard let engine` once it deallocates.
+  nonisolated internal static func consumeStreams(
+    observer: ConnectivityObserver,
+    engine: @escaping @Sendable () -> ContextEngine?
+  ) async {
+    await withTaskGroup(of: Void.self) { group in
+      group.addTask { await Self.consumeReachability(observer, engine) }
+      group.addTask { await Self.consumeInstalled(observer, engine) }
+      group.addTask { await Self.consumeInbound(observer, engine) }
+    }
+  }
+
+  nonisolated private static func consumeReachability(
+    _ observer: ConnectivityObserver,
+    _ engine: @Sendable () -> ContextEngine?
+  ) async {
+    for await value in await observer.reachabilityUpdates() {
+      guard let engine = engine() else {
+        return
+      }
+      await engine.applyReachable(value)
+    }
+  }
+
+  nonisolated private static func consumeInstalled(
+    _ observer: ConnectivityObserver,
+    _ engine: @Sendable () -> ContextEngine?
+  ) async {
+    for await value in await observer.pairedAppInstalledUpdates() {
+      guard let engine = engine() else {
+        return
+      }
+      await engine.applyInstalled(value)
+    }
+  }
+
+  nonisolated private static func consumeInbound(
+    _ observer: ConnectivityObserver,
+    _ engine: @Sendable () -> ContextEngine?
+  ) async {
+    for await message in await observer.typedMessageStream() {
+      guard let engine = engine() else {
+        return
+      }
+      guard let inbound = message as? Inbound else {
+        continue
+      }
+      await engine.handleInbound(inbound)
     }
   }
 }

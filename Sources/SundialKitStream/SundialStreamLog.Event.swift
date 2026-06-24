@@ -72,8 +72,8 @@ extension SundialStreamLog {
       guard !fields.isEmpty else {
         return message
       }
-      let rendered = fields.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
-      return "\(message) \(rendered)"
+      let fieldString = fields.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
+      return "\(message) \(fieldString)"
     }
 
     public init(

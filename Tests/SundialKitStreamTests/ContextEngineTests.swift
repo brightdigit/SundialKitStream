@@ -125,4 +125,24 @@ internal struct ContextEngineTests {
     #expect(recorder.sentRevisions.isEmpty)
     #expect(sync.isReachable)
   }
+
+  @Test(
+    "Dropping a started engine without stop() lets it deallocate (stream task doesn't pin self)")
+  internal func droppingEngineWithoutStopDeallocates() async {
+    weak var weakSync: ContextEngine<Ping, Ping>?
+    do {
+      let sync = Self.makeSync(session: ContextEngineFixtures.pairedSession(), recorder: Recorder())
+      weakSync = sync
+      await sync.start()
+      // Intentionally no stop(): the stream task is fed a weak-engine closure, so it
+      // must not keep the engine alive once the last external reference is dropped.
+    }
+    // Yield so the released engine finalizes (deinit cancels its still-running tasks).
+    var waited = 0
+    while weakSync != nil, waited < 50 {
+      await Task.yield()
+      waited += 1
+    }
+    #expect(weakSync == nil)
+  }
 }

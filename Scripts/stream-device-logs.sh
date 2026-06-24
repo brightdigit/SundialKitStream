@@ -223,13 +223,13 @@ if [[ $STREAM_IPHONE -eq 1 ]]; then
         syslog_args=(-u "$IPHONE_UDID")
         [[ -n "$PROCESS_FILTER" ]] && syslog_args+=(-p "$PROCESS_FILTER")
         idevicesyslog "${syslog_args[@]}" 2>&1 \
-            | tee "$IPHONE_LOG" | sed -l 's/^/[iPhone] /' &
+            | tee "$IPHONE_LOG" | sed 's/^/[iPhone] /' &
         PIDS="$PIDS $!"
     else
         echo "📱 $IPHONE_NAME ($IPHONE_COREDEVICE_ID) → $IPHONE_LOG"
         echo "   Not USB-visible; launching $IOS_BUNDLE_ID with console attached instead..."
         console_stream "$IPHONE_COREDEVICE_ID" "$IOS_BUNDLE_ID" 2>&1 \
-            | tee "$IPHONE_LOG" | sed -l 's/^/[iPhone] /' &
+            | tee "$IPHONE_LOG" | sed 's/^/[iPhone] /' &
         PIDS="$PIDS $!"
     fi
 fi
@@ -238,7 +238,7 @@ if [[ $STREAM_WATCH -eq 1 ]]; then
     echo "⌚️ $WATCH_NAME ($WATCH_ID) → $WATCH_LOG"
     echo "   Launching $WATCH_BUNDLE_ID with console attached..."
     console_stream "$WATCH_ID" "$WATCH_BUNDLE_ID" 2>&1 \
-        | tee "$WATCH_LOG" | sed -l 's/^/[Watch] /' &
+        | tee "$WATCH_LOG" | sed 's/^/[Watch] /' &
     PIDS="$PIDS $!"
 fi
 
