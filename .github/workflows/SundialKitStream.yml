@@ -81,7 +81,6 @@ jobs:
       - uses: brightdigit/swift-build@v1
         id: build
         with:
-          scheme: ${{ env.PACKAGE_NAME }}
           type: ${{ matrix.type }}
           skip-package-resolved: true
       - name: Install curl
@@ -129,7 +128,6 @@ jobs:
         id: build
         uses: brightdigit/swift-build@v1
         with:
-          scheme: ${{ env.PACKAGE_NAME }}
           xcode: ${{ matrix.xcode }}
           skip-package-resolved: true
 
@@ -218,7 +216,6 @@ jobs:
         id: build
         uses: brightdigit/swift-build@v1
         with:
-          scheme: ${{ env.PACKAGE_NAME }}
           type: ${{ matrix.type }}
           xcode: ${{ matrix.xcode }}
           deviceName: ${{ matrix.deviceName }}
