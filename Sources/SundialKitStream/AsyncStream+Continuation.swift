@@ -66,7 +66,10 @@ extension AsyncStream {
   ) {
     self.init { continuation in
       let id = UUID()
-      Task {
+      // Hold the registration task so termination awaits it before unregistering.
+      // A stream cancelled before `register` runs — deterministic on single-threaded
+      // runtimes like Wasm — would otherwise remove a never-registered id.
+      let registration = Task {
         await register(id, continuation)
 
         // Yield initial value if provided
@@ -79,6 +82,7 @@ extension AsyncStream {
 
       continuation.onTermination = { _ in
         Task {
+          await registration.value
           await unregister(id)
         }
       }
