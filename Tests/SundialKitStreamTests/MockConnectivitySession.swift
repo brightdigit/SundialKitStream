@@ -51,6 +51,8 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
   internal var sentMessages: [ConnectivityMessage] = []
   /// Every payload handed to `sendMessageData`, in order.
   internal var sentMessageData: [Data] = []
+  /// When set, `activate()` throws this instead of succeeding.
+  internal var activateError: (any Error)?
   /// When set, `updateApplicationContext` throws this instead of recording.
   internal var updateApplicationContextError: (any Error)?
   /// Simulated time spent blocked inside `updateApplicationContext`.
@@ -66,7 +68,11 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
   /// Reply delivered to `sendMessageData`'s handler, if any.
   internal var nextSendMessageDataReply: Result<Data, any Error>?
 
-  internal func activate() throws {}
+  internal func activate() throws {
+    if let activateError {
+      throw activateError
+    }
+  }
 
   internal func updateApplicationContext(_ context: ConnectivityMessage) throws {
     stateLock.lock()

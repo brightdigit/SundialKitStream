@@ -176,10 +176,13 @@ This package depends on SundialKit v2.0.0+ which provides three products:
 
 ## Platform Support
 
-- iOS 16+
-- watchOS 9+
-- tvOS 16+
-- macOS 13+
+- iOS 18+
+- watchOS 11+
+- tvOS 18+
+- macOS 15+
+
+These floors are required by `Synchronization.Mutex` (used by the host-log bridge in
+`SundialStreamLog`); see the note in `Package.swift`.
 
 ## Testing Patterns
 

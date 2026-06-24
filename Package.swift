@@ -47,21 +47,29 @@ let swiftSettings: [SwiftSetting] = [
 let package = Package(
   name: "SundialKitStream",
   platforms: [
-    .iOS(.v16),
-    .watchOS(.v9),
-    .tvOS(.v16),
-    .macOS(.v13)
+    // Raised to the floor required by `Synchronization.Mutex` (used by the
+    // host-log bridge in SundialStreamLog).
+    .iOS(.v18),
+    .watchOS(.v11),
+    .tvOS(.v18),
+    .macOS(.v15)
   ],
   products: [
     .library(
       name: "SundialKitStream",
       targets: ["SundialKitStream"]
+    ),
+    .library(
+      name: "SundialKitStreamContext",
+      targets: ["SundialKitStreamContext"]
     )
   ],
   dependencies: [
-    // CI rewrites this to a remote URL pinned by 40-char revision, which exceeds the line length limit.
-    // swiftlint:disable:next line_length
-    .package(name: "SundialKit", path: "../SundialKit")
+    // Pinned to the matching SundialKit beta branch during co-development: the two
+    // packages evolve together until the API stabilizes. This intentionally trades
+    // build reproducibility for that lockstep — move to a version constraint
+    // (e.g. .upToNextMinor(from:)) once SundialKit cuts a release tag.
+    .package(url: "https://github.com/brightdigit/SundialKit.git", branch: "atleast-beta.6")
   ],
   targets: [
     .target(
@@ -73,9 +81,18 @@ let package = Package(
       ],
       swiftSettings: swiftSettings
     ),
+    .target(
+      name: "SundialKitStreamContext",
+      dependencies: [
+        "SundialKitStream",
+        .product(name: "SundialKitConnectivity", package: "SundialKit"),
+        .product(name: "SundialKitCore", package: "SundialKit")
+      ],
+      swiftSettings: swiftSettings
+    ),
     .testTarget(
       name: "SundialKitStreamTests",
-      dependencies: ["SundialKitStream"],
+      dependencies: ["SundialKitStream", "SundialKitStreamContext"],
       swiftSettings: swiftSettings
     )
   ]
