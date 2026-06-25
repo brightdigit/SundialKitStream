@@ -28,7 +28,7 @@
 //
 
 @testable import SundialKitConnectivity
-@testable import SundialKitStreamContext
+@testable import SundialKitContext
 
 /// Shared fixtures for the `ContextEngine` test suites.
 internal enum ContextEngineFixtures {

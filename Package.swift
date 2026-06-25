@@ -57,7 +57,14 @@ let package = Package(
   products: [
     .library(
       name: "SundialKitStream",
-      targets: ["SundialKitStream", "SundialKitStreamContext"]
+      targets: ["SundialKitStream"]
+    ),
+    // Kept a separate product so the `@Observable` context layer (and its
+    // Observation dependency) stays opt-in: a consumer that only needs
+    // `ConnectivityObserver`/`NetworkObserver` does not link `ContextEngine`.
+    .library(
+      name: "SundialKitContext",
+      targets: ["SundialKitContext"]
     )
   ],
   dependencies: [
@@ -78,17 +85,16 @@ let package = Package(
       swiftSettings: swiftSettings
     ),
     .target(
-      name: "SundialKitStreamContext",
+      name: "SundialKitContext",
       dependencies: [
         "SundialKitStream",
-        .product(name: "SundialKitConnectivity", package: "SundialKit"),
-        .product(name: "SundialKitCore", package: "SundialKit")
+        .product(name: "SundialKitConnectivity", package: "SundialKit")
       ],
       swiftSettings: swiftSettings
     ),
     .testTarget(
       name: "SundialKitStreamTests",
-      dependencies: ["SundialKitStream", "SundialKitStreamContext"],
+      dependencies: ["SundialKitStream", "SundialKitContext"],
       swiftSettings: swiftSettings
     )
   ]

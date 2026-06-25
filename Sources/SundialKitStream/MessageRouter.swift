@@ -153,15 +153,11 @@ internal struct MessageRouter {
       // No way to deliver the message - determine specific reason
       throw undeliverableError()
     }
-    // Always deliver via application context, regardless of reachability:
-    // `isReachable` gates only the binary `sendBinary` path, and the
-    // `isPairedAppInstalled && !isPaired` simulator state falls through here on purpose.
-    // These messages are latest-desired-state, for which application context is correct
-    // in every reachability state. `sendMessage` is deliberately NOT used: it needs a
-    // stable reachable link + reply, and a flapping link makes WCSession fire its error
-    // handler twice for one message, double-resuming the checked continuation.
-    //
-    // Past the guard: the application-context transport is now actually being used.
+    // Always deliver via application context, regardless of reachability: these
+    // messages are latest-desired-state, for which application context is correct
+    // in every state, and `isReachable` gates only the binary `sendBinary` path.
+    // `sendMessage` is deliberately NOT used — a flapping link makes WCSession fire
+    // its error handler twice, double-resuming the checked continuation.
     SundialLogger.streamEvent(
       .debug,
       .send,
@@ -221,11 +217,16 @@ internal struct MessageRouter {
       throw ConnectivityError.notReachable
     }
 
+    // A flapping link can fire sendMessageData's handler more than once; claim()
+    // lets the first callback win so the checked continuation is never double-resumed.
+    let resumeGuard = ResumeOnce()
     return try await withCheckedThrowingContinuation { continuation in
       session.sendMessageData(data) { result in
+        guard resumeGuard.claim() else {
+          return
+        }
         switch result {
         case .success:
-          // Note: Binary messages don't have reply data in current WatchConnectivity API
           let sendResult = ConnectivitySendResult(
             message: originalMessage,
             context: .reply([:], transport: .binary)
