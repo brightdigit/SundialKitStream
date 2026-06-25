@@ -80,6 +80,9 @@ jobs:
         id: build
         with:
           type: ${{ matrix.type }}
+          # Required: setup-sundialkit deletes Package.resolved and SundialKit is a
+          # moving branch pin, so swift-build must not pass --force-resolved-versions.
+          skip-package-resolved: true
       - name: Install curl
         if: steps.build.outputs.contains-code-coverage == 'true'
         run: |
@@ -126,6 +129,7 @@ jobs:
         uses: brightdigit/swift-build@v1
         with:
           xcode: ${{ matrix.xcode }}
+          skip-package-resolved: true
 
       # Common Coverage Steps
       - name: Process Coverage
@@ -217,6 +221,7 @@ jobs:
           deviceName: ${{ matrix.deviceName }}
           osVersion: ${{ matrix.osVersion }}
           download-platform: ${{ matrix.download-platform }}
+          skip-package-resolved: true
 
       # Common Coverage Steps
       - name: Process Coverage
@@ -260,6 +265,7 @@ jobs:
         with:
           windows-swift-version: ${{ matrix.swift.version }}
           windows-swift-build: ${{ matrix.swift.build }}
+          skip-package-resolved: true
       - name: Upload coverage to Codecov
         if: steps.build.outputs.contains-code-coverage == 'true'
         uses: codecov/codecov-action@v6
@@ -309,6 +315,7 @@ jobs:
           android-swift-version: ${{ matrix.swift.version }}
           android-api-level: ${{ matrix.android-api-level }}
           android-run-tests: true
+          skip-package-resolved: true
       - name: Upload coverage to Codecov
         if: steps.build.outputs.contains-code-coverage == 'true'
         uses: codecov/codecov-action@v6
