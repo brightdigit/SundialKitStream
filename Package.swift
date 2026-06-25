@@ -57,11 +57,7 @@ let package = Package(
   products: [
     .library(
       name: "SundialKitStream",
-      targets: ["SundialKitStream"]
-    ),
-    .library(
-      name: "SundialKitStreamContext",
-      targets: ["SundialKitStreamContext"]
+      targets: ["SundialKitStream", "SundialKitStreamContext"]
     )
   ],
   dependencies: [
@@ -69,7 +65,7 @@ let package = Package(
     // packages evolve together until the API stabilizes. This intentionally trades
     // build reproducibility for that lockstep — move to a version constraint
     // (e.g. .upToNextMinor(from:)) once SundialKit cuts a release tag.
-    .package(url: "https://github.com/brightdigit/SundialKit.git", branch: "atleast-beta.6")
+    .package(url: "https://github.com/brightdigit/SundialKit.git", branch: "v2.0.0-alpha.3")
   ],
   targets: [
     .target(
