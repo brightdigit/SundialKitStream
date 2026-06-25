@@ -120,7 +120,6 @@ The codebase uses a centralized continuation management pattern via `StreamConti
 Message flow uses a routing and distribution pattern:
 
 - `MessageRouter` - Selects appropriate transport (interactive message, application context, etc.)
-- `MessageDispatcher` - Transforms protocol-level callbacks into async operations
 - `MessageDistributor` - Distributes received messages to all active stream subscribers
 - Supports both untyped (`[String: any Sendable]`) and typed (`Messagable`) messages
 

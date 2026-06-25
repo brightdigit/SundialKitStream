@@ -107,7 +107,10 @@ extension ConnectivityStateManager.State {
       let stateManager = SundialKitStream.ConnectivityStateManager(
         continuationManager: continuationManager
       )
+      let session = MockConnectivitySession()
 
+      // `updateCompanionState` drops pre-activation events, so activate first.
+      await stateManager.handleActivation(from: session, activationState: .activated, error: nil)
       await stateManager.updateCompanionState(isPairedAppInstalled: true, isPaired: true)
 
       let state = await stateManager.currentState
@@ -119,6 +122,23 @@ extension ConnectivityStateManager.State {
         // watchOS always true (implicit pairing)
         #expect(state.isPaired == true)
       #endif
+    }
+
+    @Test("Update companion state before activation is dropped, not broadcast")
+    internal func updateCompanionStateBeforeActivationIsDropped() async {
+      let continuationManager = SundialKitStream.StreamContinuationManager()
+      let stateManager = SundialKitStream.ConnectivityStateManager(
+        continuationManager: continuationManager
+      )
+
+      // No handleActivation: a companion-state callback can arrive first when the
+      // delegate Tasks run out of order. It must early-return rather than mutate
+      // and broadcast against a nil-activation snapshot.
+      await stateManager.updateCompanionState(isPairedAppInstalled: true, isPaired: true)
+
+      let state = await stateManager.currentState
+      #expect(state.activationState == nil)
+      #expect(state.isPairedAppInstalled == false)
     }
 
     @Test("Update companion state preserves activation state")

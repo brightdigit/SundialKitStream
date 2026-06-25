@@ -165,6 +165,19 @@ extension ConnectivityStateManager {
   }
 
   internal func updateCompanionState(isPairedAppInstalled: Bool, isPaired: Bool) async {
+    // Same ordering hazard as `updateReachability`: the
+    // `sessionCompanionStateDidChange` and `activationDidCompleteWith` delegate
+    // callbacks each run in their own Task and can execute out of order on this
+    // actor. Drop a pre-activation companion-state update rather than
+    // broadcasting it against a `nil`-activation snapshot that `handleActivation`
+    // would then overwrite.
+    guard state.activationState != nil else {
+      SundialLogger.streamDebug(
+        "ConnectivityStateManager: dropping pre-activation companion-state update"
+      )
+      return
+    }
+
     #if os(iOS)
       state = ConnectivityState(
         activationState: state.activationState,
