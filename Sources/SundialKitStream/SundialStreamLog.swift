@@ -67,4 +67,20 @@ public enum SundialStreamLog {
     let sink = self.storage.withLock { $0 }
     sink?(event)
   }
+
+  /// Emits a structured event through the same pipeline as the framework's own
+  /// send/receive diagnostics — OSLog (mirrored to stdout when `SUNDIAL_CONSOLE`
+  /// is set) plus any installed ``setSink(_:)``.
+  ///
+  /// The framework logs its internal path itself; this is the public entry point
+  /// for layered code built on top of it (e.g. `SundialKitContext`'s
+  /// `ContextEngine`) to surface its own drops and sends into the same trail.
+  public static func emit(
+    _ level: Level,
+    _ kind: Kind,
+    _ message: String,
+    fields: [Event.Field] = []
+  ) {
+    SundialLogger.streamEvent(level, kind, message, fields: fields)
+  }
 }

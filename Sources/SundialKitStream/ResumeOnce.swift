@@ -1,5 +1,5 @@
 //
-//  StaleWindow.swift
+//  ResumeOnce.swift
 //  SundialKitStream
 //
 //  Created by Leo Dion.
@@ -27,27 +27,30 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-public import Foundation
+internal import Synchronization
 
-/// Decides whether an ``ExpiringMessage`` is recent enough to act on.
+/// A one-shot guard that lets a `CheckedContinuation` be resumed at most once.
 ///
-/// WatchConnectivity persists the last application context and re-delivers it on
-/// activation/foreground, so a fresh launch can receive a snapshot produced long
-/// ago. Filtering by `sentAt` against a bounded window drops those replays even on
-/// first sight, while the heartbeat keeps a still-wanted snapshot's `sentAt`
-/// current so it never ages out mid-wait.
-public struct StaleWindow: Sendable, Equatable {
-  /// The maximum age, in seconds, a snapshot may have and still be acted on.
-  public let interval: TimeInterval
+/// `WCSession`'s `sendMessageData` reply handler can fire more than once for a
+/// single message when the link is flapping; resuming a checked continuation
+/// twice traps. Routing every branch through ``claim()`` lets the first callback
+/// win and silently drops any later one.
+///
+/// A `final class` rather than a bare `Mutex` value so the guard can be captured
+/// by reference into the escaping completion handler (a `Mutex` is `~Copyable`);
+/// `Sendable` is satisfied without `@unchecked` because the sole stored property
+/// is itself `Sendable`.
+internal final class ResumeOnce: Sendable {
+  private let hasResumed = Mutex(false)
 
-  /// Creates a window of `interval` seconds (default 30).
-  public init(_ interval: TimeInterval = 30) {
-    self.interval = interval
-  }
-
-  /// `true` when `message` was sent within the window (small future clock skew is
-  /// tolerated — a negative age is still ≤ the window).
-  public func isFresh(_ message: some ExpiringMessage, now: Date = Date()) -> Bool {
-    now.timeIntervalSince(message.sentAt) <= interval
+  /// Returns `true` for the first caller and `false` for every caller after.
+  internal func claim() -> Bool {
+    hasResumed.withLock { resumed in
+      guard !resumed else {
+        return false
+      }
+      resumed = true
+      return true
+    }
   }
 }

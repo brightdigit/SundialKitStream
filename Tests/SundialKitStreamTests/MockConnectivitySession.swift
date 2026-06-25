@@ -67,6 +67,9 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
   internal var nextSendMessageReply: Result<ConnectivityMessage, any Error>?
   /// Reply delivered to `sendMessageData`'s handler, if any.
   internal var nextSendMessageDataReply: Result<Data, any Error>?
+  /// When `true`, `sendMessageData` fires its completion twice for a single call,
+  /// simulating a flapping link's duplicate WCSession callback.
+  internal var duplicateSendMessageDataReply = false
 
   internal func activate() throws {
     if let activateError {
@@ -121,9 +124,13 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
   ) {
     sentMessageData.append(data)
     // Consume the queued reply so a second send does not silently re-fire it.
-    if let nextSendMessageDataReply {
+    if let reply = nextSendMessageDataReply {
       self.nextSendMessageDataReply = nil
-      completion(nextSendMessageDataReply)
+      completion(reply)
+      // A flapping link can deliver the same callback twice for one send.
+      if duplicateSendMessageDataReply {
+        completion(reply)
+      }
     }
   }
 }

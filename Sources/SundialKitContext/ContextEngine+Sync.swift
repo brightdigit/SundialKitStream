@@ -41,8 +41,16 @@ extension ContextEngine {
     // and stop() cancels a queued assert so it short-circuits at performAssert()'s
     // phase guard. (send() itself doesn't honor cancellation, so an already-running
     // send still completes — the win is the bounded handle, not interruption.)
+    //
+    // Short-circuit once stopped so a post-stop() caller doesn't allocate a Task and
+    // hop to the actor only to bail at performAssert()'s guard.
+    guard phase != .stopped else {
+      return
+    }
     assertTask?.cancel()
-    assertTask = Task { await self.performAssert() }
+    // `[weak self]`, matching the heartbeat: a strong capture would keep the engine
+    // alive for the whole in-flight send, defeating the drop-without-stop() teardown.
+    assertTask = Task { [weak self] in await self?.performAssert() }
   }
 
   /// The awaitable core of ``assertNow()`` — stamp, build, send.
@@ -144,6 +152,17 @@ extension ContextEngine {
         return
       }
       guard let inbound = message as? Inbound else {
+        // A shared observer or a peer-side type mismatch lands here; surface it
+        // through the same structured log used for replayed-context drops rather
+        // than vanishing silently.
+        SundialStreamLog.emit(
+          .debug,
+          .dropped,
+          "ContextEngine: ignoring non-Inbound typed message",
+          fields: [
+            SundialStreamLog.Event.Field("type", String(describing: type(of: message)))
+          ]
+        )
         continue
       }
       await engine.handleInbound(inbound)

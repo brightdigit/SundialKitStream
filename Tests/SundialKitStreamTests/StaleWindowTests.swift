@@ -31,8 +31,8 @@ import Foundation
 import Testing
 
 @testable import SundialKitConnectivity
+@testable import SundialKitContext
 @testable import SundialKitStream
-@testable import SundialKitStreamContext
 
 @Suite("StaleWindow")
 internal struct StaleWindowTests {
@@ -85,5 +85,20 @@ internal struct StaleWindowTests {
     let window = StaleWindow(30)
     let message = StubIntent(sentAt: Self.now.addingTimeInterval(5))
     #expect(window.isFresh(message, now: Self.now))
+  }
+
+  @Test("A far-future timestamp beyond the tolerance is stale")
+  internal func farFutureIsStale() {
+    let window = StaleWindow(30)
+    let oneYear: TimeInterval = 365 * 24 * 60 * 60
+    let message = StubIntent(sentAt: Self.now.addingTimeInterval(oneYear))
+    #expect(!window.isFresh(message, now: Self.now))
+  }
+
+  @Test("Future skew just past the tolerance boundary is stale")
+  internal func beyondFutureToleranceIsStale() {
+    let window = StaleWindow(30, futureTolerance: 5)
+    let message = StubIntent(sentAt: Self.now.addingTimeInterval(6))
+    #expect(!window.isFresh(message, now: Self.now))
   }
 }
