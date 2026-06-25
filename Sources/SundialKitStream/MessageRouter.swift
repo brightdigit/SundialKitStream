@@ -67,24 +67,6 @@ internal struct MessageRouter {
     private let applicationContextQueue: DispatchQueue
   #endif
 
-  /// Serial queue for `updateApplicationContext` calls.
-  ///
-  /// The WCSession call is synchronous; invoking it from an async function
-  /// blocks a cooperative-pool thread, and two racing calls can block *both*
-  /// threads of a watch's 2-thread pool, starving every actor in the app.
-  /// Hopping onto this queue (a) guarantees two calls never run concurrently
-  /// and (b) keeps any blocking off the cooperative pool entirely.
-  ///
-  /// One router exists per `ConnectivityObserver`; struct copies share the
-  /// queue, preserving serialization.
-  ///
-  /// Platforms without Dispatch (e.g. WASI/Wasm) are single-threaded, so no
-  /// cross-thread serialization is possible or needed there; the queue is
-  /// elided and `updateApplicationContext` is invoked directly.
-  #if canImport(Dispatch)
-    private let applicationContextQueue: DispatchQueue
-  #endif
-
   // MARK: - Initialization
 
   /// Creates a new message router.
@@ -108,16 +90,29 @@ internal struct MessageRouter {
   ) async throws {
     let session = self.session
     #if canImport(Dispatch)
-      try await withCheckedThrowingContinuation {
-        (continuation: CheckedContinuation<Void, any Error>) in
-        applicationContextQueue.async {
-          do {
-            try session.updateApplicationContext(message)
-            continuation.resume()
-          } catch {
-            continuation.resume(throwing: error)
+      // `withCheckedThrowingContinuation` does not inject `CancellationError` on
+      // its own, and the queued block runs unconditionally once enqueued. Wrap
+      // it in `withTaskCancellationHandler` and short-circuit inside the block so
+      // a cancelled caller resumes promptly instead of holding a cooperative-pool
+      // thread until the dispatch work finishes (a real starvation risk on
+      // watchOS's 2-thread pool).
+      try await withTaskCancellationHandler {
+        try await withCheckedThrowingContinuation {
+          (continuation: CheckedContinuation<Void, any Error>) in
+          applicationContextQueue.async {
+            guard !Task.isCancelled else {
+              continuation.resume(throwing: CancellationError())
+              return
+            }
+            do {
+              try session.updateApplicationContext(message)
+              continuation.resume()
+            } catch {
+              continuation.resume(throwing: error)
+            }
           }
         }
+      } onCancel: {
       }
     #else
       // Single-threaded platforms (WASI/Wasm) have no Dispatch; the call
@@ -186,56 +181,6 @@ internal struct MessageRouter {
         "MessageRouter: Cannot send - devices not paired (isPaired=\(session.isPaired))"
       )
       return ConnectivityError.deviceNotPaired
-    }
-    // Devices are paired but app not installed
-    SundialLogger.streamError(
-      // swiftlint:disable:next line_length
-      "MessageRouter: Cannot send - companion app not installed (isPaired=\(session.isPaired), isPairedAppInstalled=\(session.isPairedAppInstalled))"
-    )
-    return ConnectivityError.companionAppNotInstalled
-  }
-
-  /// Determines the specific error for a message that cannot be delivered.
-  ///
-  /// Binary messages require reachability and cannot use application context.
-  ///
-  /// - Parameters:
-  ///   - data: The encoded binary message data
-  ///   - originalMessage: The original message dictionary for result tracking
-  /// - Returns: The send result
-  /// - Throws: Error if the message cannot be sent or counterpart is not reachable
-  internal func sendBinary(
-    _ data: Data,
-    originalMessage: ConnectivityMessage
-  ) async throws -> ConnectivitySendResult {
-    guard session.isReachable else {
-      // Binary messages require reachability - can't use application context
-      SundialLogger.streamError(
-        // swiftlint:disable:next line_length
-        "MessageRouter: Cannot send binary - not reachable (isReachable=\(session.isReachable), isPaired=\(session.isPaired), isPairedAppInstalled=\(session.isPairedAppInstalled))"
-      )
-      throw ConnectivityError.notReachable
-    }
-
-    // A flapping link can fire sendMessageData's handler more than once; claim()
-    // lets the first callback win so the checked continuation is never double-resumed.
-    let resumeGuard = ResumeOnce()
-    return try await withCheckedThrowingContinuation { continuation in
-      session.sendMessageData(data) { result in
-        guard resumeGuard.claim() else {
-          return
-        }
-        switch result {
-        case .success:
-          let sendResult = ConnectivitySendResult(
-            message: originalMessage,
-            context: .reply([:], transport: .binary)
-          )
-          continuation.resume(returning: sendResult)
-        case .failure(let error):
-          continuation.resume(throwing: error)
-        }
-      }
     }
     // Devices are paired but app not installed
     SundialLogger.streamError(
