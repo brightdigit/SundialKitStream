@@ -43,17 +43,94 @@ internal final class MockConnectivitySession: ConnectivitySession, @unchecked Se
   internal var activationState: ActivationState = .notActivated
   internal var receivedApplicationContext: ConnectivityMessage?
 
-  internal func activate() throws {}
+  // MARK: - Transport call recording
 
-  internal func updateApplicationContext(_ context: ConnectivityMessage) throws {}
+  /// Every dictionary handed to `updateApplicationContext`, in order.
+  internal var applicationContexts: [ConnectivityMessage] = []
+  /// Every dictionary handed to `sendMessage`, in order.
+  internal var sentMessages: [ConnectivityMessage] = []
+  /// Every payload handed to `sendMessageData`, in order.
+  internal var sentMessageData: [Data] = []
+  /// When set, `activate()` throws this instead of succeeding.
+  internal var activateError: (any Error)?
+  /// When set, `updateApplicationContext` throws this instead of recording.
+  internal var updateApplicationContextError: (any Error)?
+  /// Simulated time spent blocked inside `updateApplicationContext`.
+  internal var updateApplicationContextDelay: TimeInterval?
+  /// Guards the concurrency-tracking counters below, which are mutated from
+  /// whatever thread the transport call arrives on.
+  private let stateLock = NSLock()
+  private var activeContextUpdates = 0
+  /// High-water mark of concurrent `updateApplicationContext` executions.
+  internal private(set) var maxConcurrentContextUpdates = 0
+  /// Reply delivered to `sendMessage`'s handler, if any.
+  internal var nextSendMessageReply: Result<ConnectivityMessage, any Error>?
+  /// Reply delivered to `sendMessageData`'s handler, if any.
+  internal var nextSendMessageDataReply: Result<Data, any Error>?
+  /// When `true`, `sendMessageData` fires its completion twice for a single call,
+  /// simulating a flapping link's duplicate WCSession callback.
+  internal var duplicateSendMessageDataReply = false
+
+  internal func activate() throws {
+    if let activateError {
+      throw activateError
+    }
+  }
+
+  internal func updateApplicationContext(_ context: ConnectivityMessage) throws {
+    stateLock.lock()
+    activeContextUpdates += 1
+    maxConcurrentContextUpdates = max(maxConcurrentContextUpdates, activeContextUpdates)
+    let delay = updateApplicationContextDelay
+    stateLock.unlock()
+
+    // Simulate WCSession blocking inside the call. Held *outside* the lock so
+    // overlapping callers are observable via `maxConcurrentContextUpdates`.
+    // `Thread` is unavailable on WASI (no Dispatch); that runtime is
+    // single-threaded, so there is no overlap to simulate and the delay is skipped.
+    #if canImport(Dispatch)
+      if let delay {
+        Thread.sleep(forTimeInterval: delay)
+      }
+    #else
+      _ = delay
+    #endif
+
+    stateLock.lock()
+    activeContextUpdates -= 1
+    stateLock.unlock()
+
+    if let updateApplicationContextError {
+      throw updateApplicationContextError
+    }
+    applicationContexts.append(context)
+  }
 
   internal func sendMessage(
     _ message: ConnectivityMessage,
     _ replyHandler: @escaping (Result<ConnectivityMessage, any Error>) -> Void
-  ) {}
+  ) {
+    sentMessages.append(message)
+    // Consume the queued reply so a second send does not silently re-fire it.
+    if let nextSendMessageReply {
+      self.nextSendMessageReply = nil
+      replyHandler(nextSendMessageReply)
+    }
+  }
 
   internal func sendMessageData(
     _ data: Data,
     _ completion: @escaping (Result<Data, any Error>) -> Void
-  ) {}
+  ) {
+    sentMessageData.append(data)
+    // Consume the queued reply so a second send does not silently re-fire it.
+    if let reply = nextSendMessageDataReply {
+      self.nextSendMessageDataReply = nil
+      completion(reply)
+      // A flapping link can deliver the same callback twice for one send.
+      if duplicateSendMessageDataReply {
+        completion(reply)
+      }
+    }
+  }
 }

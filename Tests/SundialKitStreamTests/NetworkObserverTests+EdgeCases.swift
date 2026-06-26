@@ -27,21 +27,21 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if canImport(Network)
-  import Foundation
-  import Testing
+import Foundation
+import Testing
 
-  @testable import SundialKitCore
-  @testable import SundialKitNetwork
-  @testable import SundialKitStream
+@testable import SundialKitCore
+@testable import SundialKitNetwork
+@testable import SundialKitStream
 
-  extension NetworkObserverTests {
-    @Suite("Edge Cases and State Tests")
-    internal struct EdgeCasesTests {
-      // MARK: - Current State Tests
+extension NetworkObserverTests {
+  @Suite("Edge Cases and State Tests", .enabled(if: SupportedModule.network.isSupported))
+  internal struct EdgeCasesTests {
+    // MARK: - Current State Tests
 
-      @Test("getCurrentPath returns latest path")
-      internal func getCurrentPathSnapshot() async {
+    @Test("getCurrentPath returns latest path")
+    internal func getCurrentPathSnapshot() async {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
@@ -67,10 +67,14 @@
 
         currentPath = await observer.getCurrentPath()
         #expect(currentPath?.pathStatus == .satisfied(.wifi))
-      }
+      #else
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
+      #endif
+    }
 
-      @Test("getCurrentPingStatus returns nil when no ping configured")
-      internal func getCurrentPingStatusWithoutPing() async {
+    @Test("getCurrentPingStatus returns nil when no ping configured")
+    internal func getCurrentPingStatusWithoutPing() async {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
@@ -78,12 +82,16 @@
 
         let pingStatus = await observer.getCurrentPingStatus()
         #expect(pingStatus == nil)
-      }
+      #else
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
+      #endif
+    }
 
-      // MARK: - Stream Cleanup Tests
+    // MARK: - Stream Cleanup Tests
 
-      @Test("Cancel finishes all active path streams")
-      internal func cancelFinishesPathStreams() async throws {
+    @Test("Cancel finishes all active path streams")
+    internal func cancelFinishesPathStreams() async throws {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
@@ -101,10 +109,14 @@
         // Try to get next value - should complete
         let nextValue = await iterator.next()
         #expect(nextValue == nil)
-      }
+      #else
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
+      #endif
+    }
 
-      @Test("Stream iteration completes after cancel")
-      internal func streamCompletesAfterCancel() async throws {
+    @Test("Stream iteration completes after cancel")
+    internal func streamCompletesAfterCancel() async throws {
+      #if canImport(Network)
         let monitor = MockPathMonitor()
         let observer = NetworkObserver(monitor: monitor)
 
@@ -139,7 +151,9 @@
 
         let receivedAfterCancel = await capture.boolValue
         #expect(receivedAfterCancel != true)
-      }
+      #else
+        Issue.record("This test requires the Network framework and is disabled on this platform.")
+      #endif
     }
   }
-#endif
+}

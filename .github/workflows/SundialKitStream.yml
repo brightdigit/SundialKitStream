@@ -69,13 +69,21 @@ jobs:
             type: wasm
           - swift: {version: "6.1"}
             type: wasm-embedded
+        include:
+          # Swift 6.4 nightly toolchain (noble, plain SPM build). The container
+          # expression resolves matrix.swift.nightly to swiftlang/swift:nightly-6.4.x-noble.
+          - os: noble
+            swift: {version: "6.4.x", nightly: true}
+            type: ""
     steps:
       - uses: actions/checkout@v6
       - uses: brightdigit/swift-build@v1
         id: build
         with:
-          scheme: ${{ env.PACKAGE_NAME }}
           type: ${{ matrix.type }}
+          # No Package.resolved is committed (SundialKit is pinned by version in
+          # Package.swift), so swift-build must not pass --force-resolved-versions.
+          skip-package-resolved: true
       - name: Install curl
         if: steps.build.outputs.contains-code-coverage == 'true'
         run: |
@@ -107,7 +115,7 @@ jobs:
         include:
           # SPM Build — no platform type; matrix.type evaluates to '' by design
           - runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
+            xcode: "/Applications/Xcode_26.5.app"
 
     steps:
       - uses: actions/checkout@v6
@@ -116,8 +124,8 @@ jobs:
         id: build
         uses: brightdigit/swift-build@v1
         with:
-          scheme: ${{ env.PACKAGE_NAME }}
           xcode: ${{ matrix.xcode }}
+          skip-package-resolved: true
 
       # Common Coverage Steps
       - name: Process Coverage
@@ -147,9 +155,9 @@ jobs:
           # iOS Build Matrix
           - type: ios
             runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
+            xcode: "/Applications/Xcode_26.5.app"
             deviceName: "iPhone 17 Pro"
-            osVersion: "26.4"
+            osVersion: "26.5"
             download-platform: true
 
           - type: ios
@@ -158,12 +166,19 @@ jobs:
             deviceName: "iPhone 16e"
             osVersion: "18.5"
 
-          # watchOS Build Matrix
+          - type: ios
+            runs-on: macos-15
+            xcode: "/Applications/Xcode_16.3.app"
+            deviceName: "iPhone 16"
+            osVersion: "18.4"
+            download-platform: true
+
+          # watchOS Build Matrix - Xcode 16.x+ (Swift 6.1+)
           - type: watchos
             runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
+            xcode: "/Applications/Xcode_26.5.app"
             deviceName: "Apple Watch Ultra 3 (49mm)"
-            osVersion: "26.4"
+            osVersion: "26.5"
             download-platform: true
 
           - type: watchos
@@ -172,14 +187,19 @@ jobs:
             deviceName: "Apple Watch Series 10 (46mm)"
             osVersion: "11.5"
 
+          - type: watchos
+            runs-on: macos-15
+            xcode: "/Applications/Xcode_16.3.app"
+            deviceName: "Apple Watch Series 10 (42mm)"
+            osVersion: "11.4"
+            download-platform: true
+
           # tvOS Build Matrix
           - type: tvos
             runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
+            xcode: "/Applications/Xcode_26.5.app"
             deviceName: "Apple TV"
-            osVersion: "26.4"
-            download-platform: true
-
+            osVersion: "26.5"            
     steps:
       - uses: actions/checkout@v6
 
@@ -187,12 +207,12 @@ jobs:
         id: build
         uses: brightdigit/swift-build@v1
         with:
-          scheme: ${{ env.PACKAGE_NAME }}
           type: ${{ matrix.type }}
           xcode: ${{ matrix.xcode }}
           deviceName: ${{ matrix.deviceName }}
           osVersion: ${{ matrix.osVersion }}
           download-platform: ${{ matrix.download-platform }}
+          skip-package-resolved: true
 
       # Common Coverage Steps
       - name: Process Coverage
@@ -232,6 +252,7 @@ jobs:
         with:
           windows-swift-version: ${{ matrix.swift.version }}
           windows-swift-build: ${{ matrix.swift.build }}
+          skip-package-resolved: true
       - name: Upload coverage to Codecov
         if: steps.build.outputs.contains-code-coverage == 'true'
         uses: codecov/codecov-action@v6
@@ -254,7 +275,10 @@ jobs:
         swift:
           - version: "6.2"
           - version: "6.3"
-        android-api-level: [33, 36]
+        # API 36 dropped: Swift 6.x Android SDK lacks API-36 CRT objects
+        # (crtbegin_dynamic.o/crtend_android.o), link fails. Re-add when the
+        # SDK ships an NDK r28+ sysroot. See skiptools/swift-android-action.
+        android-api-level: [33, 35]
     steps:
       - uses: actions/checkout@v6
       - name: Free disk space
@@ -274,6 +298,7 @@ jobs:
           android-swift-version: ${{ matrix.swift.version }}
           android-api-level: ${{ matrix.android-api-level }}
           android-run-tests: true
+          skip-package-resolved: true
       - name: Upload coverage to Codecov
         if: steps.build.outputs.contains-code-coverage == 'true'
         uses: codecov/codecov-action@v6
@@ -292,7 +317,8 @@ jobs:
     needs: [build-ubuntu, build-macos, build-windows, build-macos-full, build-android]
     steps:
       - uses: actions/checkout@v6
-      - uses: jdx/mise-action@v4
+      - name: Install mise
+        uses: jdx/mise-action@v4
         with:
           cache: true
       - name: Lint

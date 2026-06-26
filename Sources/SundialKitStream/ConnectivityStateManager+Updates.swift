@@ -129,11 +129,19 @@ extension ConnectivityStateManager {
   }
 
   internal func updateReachability(_ isReachable: Bool) async {
-    // Verify session has been activated before updating reachability
-    assert(
-      state.activationState != nil,
-      "Cannot update reachability before session activation"
-    )
+    // A reachability change can arrive before activation completes: the
+    // `sessionReachabilityDidChange` and `activationDidCompleteWith` delegate
+    // callbacks each run in their own Task and can execute out of order on this
+    // actor. Drop the early update rather than trapping — `handleActivation`
+    // re-establishes reachability from the live session and yields it once
+    // activation completes, so no state is lost.
+    guard state.activationState != nil else {
+      SundialLogger.streamDebug(
+        // swiftlint:disable:next line_length
+        "ConnectivityStateManager: dropping reachability update (\(isReachable)) received before activation completed"
+      )
+      return
+    }
 
     #if os(iOS)
       state = ConnectivityState(
@@ -157,6 +165,19 @@ extension ConnectivityStateManager {
   }
 
   internal func updateCompanionState(isPairedAppInstalled: Bool, isPaired: Bool) async {
+    // Same ordering hazard as `updateReachability`: the
+    // `sessionCompanionStateDidChange` and `activationDidCompleteWith` delegate
+    // callbacks each run in their own Task and can execute out of order on this
+    // actor. Drop a pre-activation companion-state update rather than
+    // broadcasting it against a `nil`-activation snapshot that `handleActivation`
+    // would then overwrite.
+    guard state.activationState != nil else {
+      SundialLogger.streamDebug(
+        "ConnectivityStateManager: dropping pre-activation companion-state update"
+      )
+      return
+    }
+
     #if os(iOS)
       state = ConnectivityState(
         activationState: state.activationState,

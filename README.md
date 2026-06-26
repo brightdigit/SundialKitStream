@@ -71,8 +71,8 @@ let package = Package(
   name: "YourPackage",
   platforms: [.iOS(.v16), .watchOS(.v9), .tvOS(.v16), .macOS(.v13)],
   dependencies: [
-    .package(url: "https://github.com/brightdigit/SundialKit.git", from: "2.0.0-alpha.1"),
-    .package(url: "https://github.com/brightdigit/SundialKitStream.git", from: "1.0.0-alpha.1")
+    .package(url: "https://github.com/brightdigit/SundialKit.git", from: "2.0.0-alpha.3"),
+    .package(url: "https://github.com/brightdigit/SundialKitStream.git", from: "1.0.0-alpha.3")
   ],
   targets: [
     .target(
@@ -405,6 +405,8 @@ SundialKitStream is part of SundialKit's three-layer architecture:
 For comprehensive documentation, see:
 - [SundialKitStream Documentation](https://swiftpackageindex.com/brightdigit/SundialKitStream/documentation)
 - [SundialKit Main Documentation](https://swiftpackageindex.com/brightdigit/SundialKit/documentation)
+- [ContextEngine](./Documentation/CONTEXT_ENGINE.md) — reliable revisioned/heartbeated snapshot sync over WatchConnectivity (anatomy + diagrams)
+- [Watch↔Phone Reliability](./Documentation/WATCH_COMMS_RELIABILITY.md) — the reliability rationale and debugging trace
 
 ## Related Packages
 

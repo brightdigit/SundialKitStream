@@ -43,8 +43,13 @@ extension ConnectivityStateManager.Stream {
       let stateManager = SundialKitStream.ConnectivityStateManager(
         continuationManager: continuationManager
       )
+      let session = MockConnectivitySession()
 
-      await confirmation("Paired app installed received", expectedCount: 1) { confirm in
+      // `updateCompanionState` drops pre-activation events (the activation
+      // snapshot would overwrite them), so activate first: activation emits the
+      // session's initial paired-app-installed value (false) and the subsequent
+      // update emits true.
+      await confirmation("Paired app installed values received", expectedCount: 2) { confirm in
         let capture = TestValueCapture()
 
         let pairedAppInstalledStream = ConnectivityStateManager.Stream
@@ -53,24 +58,32 @@ extension ConnectivityStateManager.Stream {
             id: UUID()
           )
 
-        ConnectivityStateManager.Stream.consumeSingleValue(
+        ConnectivityStateManager.Stream.consumeMultipleValues(
           from: pairedAppInstalledStream,
           into: capture,
-          setter: { await $0.set(pairedAppInstalled: $1) },
+          expectedCount: 2,
           confirm: confirm
         )
 
         // Give stream time to register
         try? await Task.sleep(for: .milliseconds(50))
 
-        // Update companion state
+        // Trigger initial activation (emits the session's paired-app-installed: false)
+        await stateManager.handleActivation(from: session, activationState: .activated, error: nil)
+
+        // Give time for the first notification
+        try? await Task.sleep(for: .milliseconds(10))
+
+        // Update companion state (emits true)
         await stateManager.updateCompanionState(isPairedAppInstalled: true, isPaired: false)
 
-        // Wait for stream to receive value
+        // Wait for both values to be received
         try? await Task.sleep(for: .milliseconds(100))
 
-        let capturedValue = await capture.pairedAppInstalled
-        #expect(capturedValue == true)
+        let capturedValues = await capture.boolValues
+        #expect(capturedValues.count == 2)
+        #expect(capturedValues[0] == false)
+        #expect(capturedValues[1] == true)
       }
     }
   }
