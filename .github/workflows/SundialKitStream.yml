@@ -25,7 +25,6 @@ concurrency:
 
 env:
   PACKAGE_NAME: SundialKitStream
-  SUNDIALKIT_BRANCH: v2.0.0-alpha.3
 jobs:
   configure:
     name: Configure Build Matrix
@@ -78,16 +77,12 @@ jobs:
             type: ""
     steps:
       - uses: actions/checkout@v6
-      - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
-        with:
-          branch: ${{ env.SUNDIALKIT_BRANCH }}
       - uses: brightdigit/swift-build@v1
         id: build
         with:
           type: ${{ matrix.type }}
-          # Required: setup-sundialkit deletes Package.resolved and SundialKit is a
-          # moving branch pin, so swift-build must not pass --force-resolved-versions.
+          # No Package.resolved is committed (SundialKit is pinned by version in
+          # Package.swift), so swift-build must not pass --force-resolved-versions.
           skip-package-resolved: true
       - name: Install curl
         if: steps.build.outputs.contains-code-coverage == 'true'
@@ -124,11 +119,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-
-      - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
-        with:
-          branch: ${{ env.SUNDIALKIT_BRANCH }}
 
       - name: Build and Test
         id: build
@@ -213,11 +203,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
-        with:
-          branch: ${{ env.SUNDIALKIT_BRANCH }}
-
       - name: Build and Test
         id: build
         uses: brightdigit/swift-build@v1
@@ -262,10 +247,6 @@ jobs:
       - name: Enable git symlinks
         shell: pwsh
         run: git config --global core.symlinks true
-      - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
-        with:
-          branch: ${{ env.SUNDIALKIT_BRANCH }}
       - uses: brightdigit/swift-build@v1
         id: build
         with:
@@ -300,10 +281,6 @@ jobs:
         android-api-level: [33, 35]
     steps:
       - uses: actions/checkout@v6
-      - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
-        with:
-          branch: ${{ env.SUNDIALKIT_BRANCH }}
       - name: Free disk space
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
@@ -340,10 +317,6 @@ jobs:
     needs: [build-ubuntu, build-macos, build-windows, build-macos-full, build-android]
     steps:
       - uses: actions/checkout@v6
-      - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
-        with:
-          branch: ${{ env.SUNDIALKIT_BRANCH }}
       - name: Install mise
         uses: jdx/mise-action@v4
         with:

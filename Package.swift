@@ -68,11 +68,9 @@ let package = Package(
     )
   ],
   dependencies: [
-    // Pinned to the matching SundialKit beta branch during co-development: the two
-    // packages evolve together until the API stabilizes. This intentionally trades
-    // build reproducibility for that lockstep — move to a version constraint
-    // (e.g. .upToNextMinor(from:)) once SundialKit cuts a release tag.
-    .package(url: "https://github.com/brightdigit/SundialKit.git", branch: "v2.0.0-alpha.3")
+    // Pinned to the matching SundialKit release tag. The two packages are
+    // co-developed and versioned in lockstep during the alpha series.
+    .package(url: "https://github.com/brightdigit/SundialKit.git", from: "2.0.0-alpha.3")
   ],
   targets: [
     .target(
