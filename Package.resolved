@@ -1,13 +1,13 @@
 {
-  "originHash" : "9808fd6452b6609c7e7eb49449d8bb46627d7e803a8d4670a8512ad40388c37a",
+  "originHash" : "e28b082d6cda60ef39a20de9fba3476dd08b01755f19e4175221c53ff700606c",
   "pins" : [
     {
       "identity" : "sundialkit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/brightdigit/SundialKit.git",
       "state" : {
-        "branch" : "v2.0.0-alpha.3",
-        "revision" : "ce27a0d30353b69dfe57c4f6cc39c2e6f80b52ca"
+        "branch" : "v2.0.0-alpha.4",
+        "revision" : "e6598eadc5028207165e42bebf02fc4f92e4bd9c"
       }
     }
   ],

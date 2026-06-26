@@ -47,8 +47,6 @@ let swiftSettings: [SwiftSetting] = [
 let package = Package(
   name: "SundialKitStream",
   platforms: [
-    // Raised to the floor required by `Synchronization.Mutex` (used by the
-    // host-log bridge in SundialStreamLog).
     .iOS(.v18),
     .watchOS(.v11),
     .tvOS(.v18),
@@ -59,9 +57,6 @@ let package = Package(
       name: "SundialKitStream",
       targets: ["SundialKitStream"]
     ),
-    // Kept a separate product so the `@Observable` context layer (and its
-    // Observation dependency) stays opt-in: a consumer that only needs
-    // `ConnectivityObserver`/`NetworkObserver` does not link `ContextEngine`.
     .library(
       name: "SundialKitContext",
       targets: ["SundialKitContext"]
@@ -72,7 +67,7 @@ let package = Package(
     // packages evolve together until the API stabilizes. This intentionally trades
     // build reproducibility for that lockstep — move to a version constraint
     // (e.g. .upToNextMinor(from:)) once SundialKit cuts a release tag.
-    .package(url: "https://github.com/brightdigit/SundialKit.git", branch: "v2.0.0-alpha.3")
+    .package(url: "https://github.com/brightdigit/SundialKit.git", branch: "v2.0.0-alpha.4")
   ],
   targets: [
     .target(
