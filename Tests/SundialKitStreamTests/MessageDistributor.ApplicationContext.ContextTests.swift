@@ -100,6 +100,24 @@ extension MessageDistributor.ApplicationContext {
       #expect(received.count == 3)
     }
 
+    @Test("Date-bearing context dedups without trapping")
+    internal func dateContextDoesNotCrash() async {
+      let received = await Self.collectRawDeliveries { distributor in
+        // `Date` is not a valid JSON type; serializing it raises an Obj-C
+        // NSException that `try?` cannot catch. The fixed dedup path must
+        // route around JSON entirely. Fixed timestamp so both are identical.
+        let context: ConnectivityMessage = [
+          "__type": "WorkoutStateUpdate",
+          "startDate": Date(timeIntervalSince1970: 0),
+        ]
+        await distributor.handleApplicationContext(context, error: nil)
+        await distributor.handleApplicationContext(context, error: nil)
+      }
+
+      // Identical contexts: the second is suppressed via the NSDictionary fallback.
+      #expect(received.count == 1)
+    }
+
     @Test("Undecodable message is dropped without trapping")
     internal func undecodableMessageIsDropped() async {
       let manager = SundialKitStream.StreamContinuationManager()

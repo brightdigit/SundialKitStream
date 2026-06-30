@@ -79,7 +79,12 @@ public actor MessageDistributor {
     matches rhs: ConnectivityMessage
   ) -> Bool {
     let options: JSONSerialization.WritingOptions = [.sortedKeys]
-    if let lhsData = try? JSONSerialization.data(withJSONObject: lhs, options: options),
+    // `isValidJSONObject` is checked first: `data(withJSONObject:)` raises an
+    // Obj-C `NSException` (not a Swift error) for non-JSON values like `Date`,
+    // which `try?` cannot catch — it would crash the process.
+    if JSONSerialization.isValidJSONObject(lhs),
+      JSONSerialization.isValidJSONObject(rhs),
+      let lhsData = try? JSONSerialization.data(withJSONObject: lhs, options: options),
       let rhsData = try? JSONSerialization.data(withJSONObject: rhs, options: options)
     {
       return lhsData == rhsData
