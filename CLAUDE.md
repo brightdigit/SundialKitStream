@@ -179,9 +179,11 @@ This package depends on SundialKit v2.0.0+ which provides three products:
 - watchOS 11+
 - tvOS 18+
 - macOS 15+
+- visionOS 2+
 
 These floors are required by `Synchronization.Mutex` (used by the host-log bridge in
-`SundialStreamLog`); see the note in `Package.swift`.
+`SundialStreamLog`); see the note in `Package.swift`. visionOS 2.0 is the same
+generation as iOS 18.
 
 ## Testing Patterns
 
