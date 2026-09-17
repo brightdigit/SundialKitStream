@@ -52,19 +52,43 @@ public enum SundialStreamLog {
     case error
   }
 
-  private static let storage = Mutex<(@Sendable (Event) -> Void)?>(nil)
+  /// Box holding the installed sink.
+  ///
+  /// The closure is deliberately wrapped in a struct rather than stored as a
+  /// bare function value. Reading a bare `@Sendable (Event) -> Void` back out of
+  /// a `Mutex` *mutates* it: `withLock` yields the value as generic `inout`,
+  /// materializing a function across that abstraction boundary wraps it in a
+  /// reabstraction thunk pair, and the write-back stores the wrapped copy over
+  /// the original. The layers compose and are never collapsed, so N reads leave
+  /// a 2N-deep thunk chain and the sink eventually overflows the stack — which
+  /// killed the AtLeast watch app ~23 minutes into every session
+  /// (brightdigit/AtLeast#329). Wrapping the function in a `Sendable` struct
+  /// keeps it from crossing that boundary bare.
+  ///
+  /// See [swiftlang/swift#91348](https://github.com/swiftlang/swift/issues/91348)
+  /// (duplicate of #54724). Note that issue reports the accumulation as
+  /// `-Onone`-only; measured on Swift 6.4 / arm64-apple-macosx27 it reproduces at
+  /// **both** `-Onone` and `-O`, so this is not a debug-only concern.
+  ///
+  /// Covered by `SundialStreamLogTests.forwardDoesNotAccumulateStackDepth`,
+  /// which fails without this wrapper at either optimization level.
+  private struct Sink: Sendable {
+    fileprivate var call: (@Sendable (Event) -> Void)?
+  }
+
+  private static let storage = Mutex<Sink>(Sink())
 
   /// Installs (or clears, when `nil`) the host sink that receives stream events.
   ///
   /// - Parameter sink: A `Sendable` closure invoked for every stream-category
   ///   event, or `nil` to stop forwarding.
   public static func setSink(_ sink: (@Sendable (Event) -> Void)?) {
-    self.storage.withLock { $0 = sink }
+    self.storage.withLock { $0.call = sink }
   }
 
   /// Forwards an event to the installed sink, if any.
   internal static func forward(_ event: Event) {
-    let sink = self.storage.withLock { $0 }
+    let sink = self.storage.withLock { $0.call }
     sink?(event)
   }
 
