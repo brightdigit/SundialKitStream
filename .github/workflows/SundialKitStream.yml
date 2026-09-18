@@ -14,6 +14,10 @@ on:
     branches:
       - main
       - 'v[0-9]*.[0-9]*.[0-9]*'
+      # TEMPORARY: PR #26 targets this branch, and the pull_request filter matches on
+      # the BASE branch - so listing the base here is what lets the Xcode 27 migration
+      # be verified before it reaches a v* base. Remove with the guards below.
+      - 'fix/mutex-closure-thunk-accumulation'
     paths-ignore:
       - '**.md'
       - 'Docs/**'
@@ -25,7 +29,7 @@ concurrency:
 
 env:
   PACKAGE_NAME: SundialKitStream
-  SUNDIALKIT_BRANCH: v2.0.0-alpha.3
+  SUNDIALKIT_BRANCH: v2.0.0-alpha.4
 jobs:
   configure:
     name: Configure Build Matrix
@@ -57,6 +61,8 @@ jobs:
   build-ubuntu:
     name: Build on Ubuntu
     needs: [configure]
+    # TEMPORARY: see the ci/xcode-27 note under `on:` - macOS-only verification run.
+    if: ${{ github.head_ref != 'ci/xcode-27' }}
     runs-on: ubuntu-latest
     container: ${{ matrix.swift.nightly && format('swiftlang/swift:nightly-{0}-{1}', matrix.swift.version, matrix.os) || format('swift:{0}-{1}', matrix.swift.version, matrix.os) }}
     strategy:
@@ -79,7 +85,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
       - uses: brightdigit/swift-build@v1
@@ -119,14 +125,14 @@ jobs:
       matrix:
         include:
           # SPM Build — no platform type; matrix.type evaluates to '' by design
-          - runs-on: macos-26
-            xcode: "/Applications/Xcode_26.5.app"
+          - runs-on: xcode-27
+            xcode: "/Applications/Xcode_27.0.app"
 
     steps:
       - uses: actions/checkout@v6
 
       - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
 
@@ -158,23 +164,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # SPM Build (older Xcode)
-          - runs-on: macos-15
-            xcode: "/Applications/Xcode_16.4.app"
+          # SPM Build (stable Xcode)
+          - runs-on: macos-26
+            xcode: "/Applications/Xcode_26.6.app"
 
           # iOS Build Matrix
           - type: ios
-            runs-on: macos-26
-            xcode: "/Applications/Xcode_26.5.app"
-            deviceName: "iPhone 17 Pro"
-            osVersion: "26.5"
+            runs-on: xcode-27
+            xcode: "/Applications/Xcode_27.0.app"
+            deviceName: "iPhone 17"
+            osVersion: "27.0"
             download-platform: true
 
           - type: ios
-            runs-on: macos-15
-            xcode: "/Applications/Xcode_16.4.app"
-            deviceName: "iPhone 16e"
-            osVersion: "18.5"
+            runs-on: macos-26
+            xcode: "/Applications/Xcode_26.6.app"
+            deviceName: "iPhone 17 Pro"
+            osVersion: "26.5"
 
           - type: ios
             runs-on: macos-15
@@ -185,17 +191,17 @@ jobs:
 
           # watchOS Build Matrix - Xcode 16.x+ (Swift 6.1+)
           - type: watchos
-            runs-on: macos-26
-            xcode: "/Applications/Xcode_26.5.app"
-            deviceName: "Apple Watch Ultra 3 (49mm)"
-            osVersion: "26.5"
+            runs-on: xcode-27
+            xcode: "/Applications/Xcode_27.0.app"
+            deviceName: "Apple Watch Ultra 4 (49mm)"
+            osVersion: "27.0"
             download-platform: true
 
           - type: watchos
-            runs-on: macos-15
-            xcode: "/Applications/Xcode_16.4.app"
-            deviceName: "Apple Watch Series 10 (46mm)"
-            osVersion: "11.5"
+            runs-on: macos-26
+            xcode: "/Applications/Xcode_26.6.app"
+            deviceName: "Apple Watch Ultra 3 (49mm)"
+            osVersion: "26.5"
 
           - type: watchos
             runs-on: macos-15
@@ -206,15 +212,21 @@ jobs:
 
           # tvOS Build Matrix
           - type: tvos
+            runs-on: xcode-27
+            xcode: "/Applications/Xcode_27.0.app"
+            deviceName: "Apple TV 4K (3rd generation)"
+            osVersion: "27.0"
+
+          - type: tvos
             runs-on: macos-26
-            xcode: "/Applications/Xcode_26.5.app"
-            deviceName: "Apple TV"
-            osVersion: "26.5"            
+            xcode: "/Applications/Xcode_26.6.app"
+            deviceName: "Apple TV 4K (3rd generation)"
+            osVersion: "26.5"
     steps:
       - uses: actions/checkout@v6
 
       - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
 
@@ -244,7 +256,7 @@ jobs:
   build-windows:
     name: Build on Windows
     needs: [configure]
-    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' }}
+    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' && github.head_ref != 'ci/xcode-27' }}
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
@@ -263,7 +275,7 @@ jobs:
         shell: pwsh
         run: git config --global core.symlinks true
       - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
       - uses: brightdigit/swift-build@v1
@@ -286,7 +298,7 @@ jobs:
   build-android:
     name: Build for Android
     needs: [configure]
-    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' }}
+    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' && github.head_ref != 'ci/xcode-27' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -301,7 +313,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
       - name: Free disk space
@@ -341,7 +353,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
       - name: Install mise
