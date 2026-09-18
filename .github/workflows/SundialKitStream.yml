@@ -25,7 +25,7 @@ concurrency:
 
 env:
   PACKAGE_NAME: SundialKitStream
-  SUNDIALKIT_BRANCH: v2.0.0-alpha.3
+  SUNDIALKIT_BRANCH: v2.0.0-alpha.4
 jobs:
   configure:
     name: Configure Build Matrix
@@ -79,7 +79,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
       - uses: brightdigit/swift-build@v1
@@ -119,14 +119,14 @@ jobs:
       matrix:
         include:
           # SPM Build — no platform type; matrix.type evaluates to '' by design
-          - runs-on: macos-26
-            xcode: "/Applications/Xcode_26.5.app"
+          - runs-on: xcode-27
+            xcode: "/Applications/Xcode_27.0.app"
 
     steps:
       - uses: actions/checkout@v6
 
       - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
 
@@ -164,10 +164,10 @@ jobs:
 
           # iOS Build Matrix
           - type: ios
-            runs-on: macos-26
-            xcode: "/Applications/Xcode_26.5.app"
-            deviceName: "iPhone 17 Pro"
-            osVersion: "26.5"
+            runs-on: xcode-27
+            xcode: "/Applications/Xcode_27.0.app"
+            deviceName: "iPhone 17"
+            osVersion: "27.0"
             download-platform: true
 
           - type: ios
@@ -185,10 +185,10 @@ jobs:
 
           # watchOS Build Matrix - Xcode 16.x+ (Swift 6.1+)
           - type: watchos
-            runs-on: macos-26
-            xcode: "/Applications/Xcode_26.5.app"
-            deviceName: "Apple Watch Ultra 3 (49mm)"
-            osVersion: "26.5"
+            runs-on: xcode-27
+            xcode: "/Applications/Xcode_27.0.app"
+            deviceName: "Apple Watch Ultra 4 (49mm)"
+            osVersion: "27.0"
             download-platform: true
 
           - type: watchos
@@ -206,15 +206,15 @@ jobs:
 
           # tvOS Build Matrix
           - type: tvos
-            runs-on: macos-26
-            xcode: "/Applications/Xcode_26.5.app"
-            deviceName: "Apple TV"
-            osVersion: "26.5"            
+            runs-on: xcode-27
+            xcode: "/Applications/Xcode_27.0.app"
+            deviceName: "Apple TV 4K (3rd generation)"
+            osVersion: "27.0"
     steps:
       - uses: actions/checkout@v6
 
       - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
 
@@ -263,7 +263,7 @@ jobs:
         shell: pwsh
         run: git config --global core.symlinks true
       - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
       - uses: brightdigit/swift-build@v1
@@ -301,7 +301,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
       - name: Free disk space
@@ -341,7 +341,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@v2.0.0-alpha.3
+        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
         with:
           branch: ${{ env.SUNDIALKIT_BRANCH }}
       - name: Install mise
