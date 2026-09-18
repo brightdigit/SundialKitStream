@@ -14,10 +14,6 @@ on:
     branches:
       - main
       - 'v[0-9]*.[0-9]*.[0-9]*'
-      # TEMPORARY: PR #26 targets this branch, and the pull_request filter matches on
-      # the BASE branch - so listing the base here is what lets the Xcode 27 migration
-      # be verified before it reaches a v* base. Remove with the guards below.
-      - 'fix/mutex-closure-thunk-accumulation'
     paths-ignore:
       - '**.md'
       - 'Docs/**'
@@ -29,7 +25,6 @@ concurrency:
 
 env:
   PACKAGE_NAME: SundialKitStream
-  SUNDIALKIT_BRANCH: v2.0.0-alpha.4
 jobs:
   configure:
     name: Configure Build Matrix
@@ -61,8 +56,6 @@ jobs:
   build-ubuntu:
     name: Build on Ubuntu
     needs: [configure]
-    # TEMPORARY: see the ci/xcode-27 note under `on:` - macOS-only verification run.
-    if: ${{ github.head_ref != 'ci/xcode-27' }}
     runs-on: ubuntu-latest
     container: ${{ matrix.swift.nightly && format('swiftlang/swift:nightly-{0}-{1}', matrix.swift.version, matrix.os) || format('swift:{0}-{1}', matrix.swift.version, matrix.os) }}
     strategy:
@@ -84,16 +77,12 @@ jobs:
             type: ""
     steps:
       - uses: actions/checkout@v6
-      - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
-        with:
-          branch: ${{ env.SUNDIALKIT_BRANCH }}
       - uses: brightdigit/swift-build@v1
         id: build
         with:
           type: ${{ matrix.type }}
-          # Required: setup-sundialkit deletes Package.resolved and SundialKit is a
-          # moving branch pin, so swift-build must not pass --force-resolved-versions.
+          # No Package.resolved is committed (SundialKit is pinned by version in
+          # Package.swift), so swift-build must not pass --force-resolved-versions.
           skip-package-resolved: true
       - name: Install curl
         if: steps.build.outputs.contains-code-coverage == 'true'
@@ -130,11 +119,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-
-      - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
-        with:
-          branch: ${{ env.SUNDIALKIT_BRANCH }}
 
       - name: Build and Test
         id: build
@@ -225,11 +209,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
-        with:
-          branch: ${{ env.SUNDIALKIT_BRANCH }}
-
       - name: Build and Test
         id: build
         uses: brightdigit/swift-build@v1
@@ -256,7 +235,7 @@ jobs:
   build-windows:
     name: Build on Windows
     needs: [configure]
-    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' && github.head_ref != 'ci/xcode-27' }}
+    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' }}
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
@@ -274,10 +253,6 @@ jobs:
       - name: Enable git symlinks
         shell: pwsh
         run: git config --global core.symlinks true
-      - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
-        with:
-          branch: ${{ env.SUNDIALKIT_BRANCH }}
       - uses: brightdigit/swift-build@v1
         id: build
         with:
@@ -298,7 +273,7 @@ jobs:
   build-android:
     name: Build for Android
     needs: [configure]
-    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' && github.head_ref != 'ci/xcode-27' }}
+    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -312,10 +287,6 @@ jobs:
         android-api-level: [33, 35]
     steps:
       - uses: actions/checkout@v6
-      - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
-        with:
-          branch: ${{ env.SUNDIALKIT_BRANCH }}
       - name: Free disk space
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
@@ -352,10 +323,6 @@ jobs:
     needs: [build-ubuntu, build-macos, build-windows, build-macos-full, build-android]
     steps:
       - uses: actions/checkout@v6
-      - name: Setup SundialKit
-        uses: brightdigit/SundialKit/.github/actions/setup-sundialkit@2.0.0-alpha.3
-        with:
-          branch: ${{ env.SUNDIALKIT_BRANCH }}
       - name: Install mise
         uses: jdx/mise-action@v4
         with:
