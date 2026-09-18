@@ -14,10 +14,10 @@ on:
     branches:
       - main
       - 'v[0-9]*.[0-9]*.[0-9]*'
-      # TEMPORARY: lets PR #26 (based on a fix/ branch) exercise this workflow so the
-      # Xcode 27 migration can be verified before it reaches a v* base. Remove with
-      # the CI_MACOS_ONLY guards below once #26 merges.
-      - 'ci/xcode-27'
+      # TEMPORARY: PR #26 targets this branch, and the pull_request filter matches on
+      # the BASE branch - so listing the base here is what lets the Xcode 27 migration
+      # be verified before it reaches a v* base. Remove with the guards below.
+      - 'fix/mutex-closure-thunk-accumulation'
     paths-ignore:
       - '**.md'
       - 'Docs/**'
