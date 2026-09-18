@@ -14,6 +14,10 @@ on:
     branches:
       - main
       - 'v[0-9]*.[0-9]*.[0-9]*'
+      # TEMPORARY: lets PR #26 (based on a fix/ branch) exercise this workflow so the
+      # Xcode 27 migration can be verified before it reaches a v* base. Remove with
+      # the CI_MACOS_ONLY guards below once #26 merges.
+      - 'ci/xcode-27'
     paths-ignore:
       - '**.md'
       - 'Docs/**'
@@ -57,6 +61,8 @@ jobs:
   build-ubuntu:
     name: Build on Ubuntu
     needs: [configure]
+    # TEMPORARY: see the ci/xcode-27 note under `on:` - macOS-only verification run.
+    if: ${{ github.head_ref != 'ci/xcode-27' }}
     runs-on: ubuntu-latest
     container: ${{ matrix.swift.nightly && format('swiftlang/swift:nightly-{0}-{1}', matrix.swift.version, matrix.os) || format('swift:{0}-{1}', matrix.swift.version, matrix.os) }}
     strategy:
@@ -244,7 +250,7 @@ jobs:
   build-windows:
     name: Build on Windows
     needs: [configure]
-    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' }}
+    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' && github.head_ref != 'ci/xcode-27' }}
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false
@@ -286,7 +292,7 @@ jobs:
   build-android:
     name: Build for Android
     needs: [configure]
-    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' }}
+    if: ${{ !cancelled() && needs.configure.outputs.full-matrix == 'true' && github.head_ref != 'ci/xcode-27' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
