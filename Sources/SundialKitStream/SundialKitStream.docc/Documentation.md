@@ -16,7 +16,7 @@ If you're building a modern Swift application that embraces async/await and stru
 - Want to use modern async/await patterns throughout your app
 - Need actor-based thread safety without @unchecked Sendable
 - Prefer consuming updates with `for await` loops
-- Target iOS 16+ / watchOS 9+ / tvOS 16+ / macOS 13+
+- Target iOS 18+ / watchOS 11+ / tvOS 18+ / macOS 15+
 - Value compile-time concurrency safety with Swift 6.1 strict mode
 
 ### Key Features
@@ -30,7 +30,7 @@ If you're building a modern Swift application that embraces async/await and stru
 ### Requirements
 
 - Swift 6.1+
-- iOS 16+ / watchOS 9+ / tvOS 16+ / macOS 13+
+- iOS 18+ / watchOS 11+ / tvOS 18+ / macOS 15+
 
 ### Getting Started
 
@@ -38,14 +38,15 @@ Add SundialKit to your `Package.swift`:
 
 ```swift
 dependencies: [
-  .package(url: "https://github.com/brightdigit/SundialKit.git", from: "2.0.0-alpha.3"),
-  .package(url: "https://github.com/brightdigit/SundialKitStream.git", from: "1.0.0-alpha.3")
+  .package(url: "https://github.com/brightdigit/SundialKit.git", from: "2.0.0-alpha.4"),
+  .package(url: "https://github.com/brightdigit/SundialKitStream.git", from: "1.0.0-alpha.4")
 ],
 targets: [
   .target(
     name: "YourTarget",
     dependencies: [
       .product(name: "SundialKitStream", package: "SundialKitStream"),
+      .product(name: "SundialKitContext", package: "SundialKitStream"), // Optional: ContextEngine
       .product(name: "SundialKitNetwork", package: "SundialKit"),  // For network monitoring
       .product(name: "SundialKitConnectivity", package: "SundialKit")  // For WatchConnectivity
     ]
